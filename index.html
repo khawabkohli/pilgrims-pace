@@ -87,37 +87,59 @@ viewer.scene.fog.enabled=true;
 viewer.scene.highDynamicRange=true;
 viewer.scene.postProcessStages.fxaa.enabled=true;
 viewer.scene.backgroundColor=Cesium.Color.BLACK;
-viewer.camera.frustum.fov=Cesium.Math.toRadians(50);
+viewer.camera.frustum.fov=Cesium.Math.toRadians(54);
 viewer.scene.screenSpaceCameraController.minimumZoomDistance=18;
 viewer.scene.screenSpaceCameraController.maximumZoomDistance=2800;
 
 const views={
-  // Low drone viewpoints. The Burj now reads vertically instead of as a flat map texture.
-  downtown:{lon:55.26945,lat:25.19305,h:235,heading:43,pitch:-4},
-  drive:{lon:55.27055,lat:25.19375,h:62,heading:50,pitch:-1},
-  fountain:{lon:55.27320,lat:25.19435,h:108,heading:30,pitch:-5}
+  downtown:{
+    camera:[55.26630,25.19070,285],
+    target:[55.274376,25.197197,345]
+  },
+  drive:{
+    camera:[55.27005,25.19325,68],
+    target:[55.27300,25.19510,28]
+  },
+  fountain:{
+    camera:[55.27225,25.19415,96],
+    target:[55.27515,25.19555,22]
+  }
 };
 
-function setView(v){
+function cameraOrientation(view){
+  const destination=Cesium.Cartesian3.fromDegrees(...view.camera);
+  const target=Cesium.Cartesian3.fromDegrees(...view.target);
+  const direction=Cesium.Cartesian3.normalize(
+    Cesium.Cartesian3.subtract(target,destination,new Cesium.Cartesian3()),
+    new Cesium.Cartesian3()
+  );
+  const surfaceUp=Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(destination,new Cesium.Cartesian3());
+  const right=Cesium.Cartesian3.normalize(
+    Cesium.Cartesian3.cross(direction,surfaceUp,new Cesium.Cartesian3()),
+    new Cesium.Cartesian3()
+  );
+  const up=Cesium.Cartesian3.normalize(
+    Cesium.Cartesian3.cross(right,direction,new Cesium.Cartesian3()),
+    new Cesium.Cartesian3()
+  );
+  return {destination,direction,up};
+}
+
+function setView(view){
+  const o=cameraOrientation(view);
   viewer.camera.setView({
-    destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
-    orientation:{
-      heading:Cesium.Math.toRadians(v.heading),
-      pitch:Cesium.Math.toRadians(v.pitch),
-      roll:0
-    }
+    destination:o.destination,
+    orientation:{direction:o.direction,up:o.up}
   });
 }
 
-function fly(v,d=2.1){
+function fly(view,d=2.1){
+  const o=cameraOrientation(view);
   viewer.camera.flyTo({
-    destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
-    orientation:{
-      heading:Cesium.Math.toRadians(v.heading),
-      pitch:Cesium.Math.toRadians(v.pitch),
-      roll:0
-    },
-    duration:d
+    destination:o.destination,
+    orientation:{direction:o.direction,up:o.up},
+    duration:d,
+    easingFunction:Cesium.EasingFunction.CUBIC_IN_OUT
   });
 }
 
@@ -128,10 +150,11 @@ setView(views.downtown);
 let tileset;
 try{
   tileset=await Cesium.createGooglePhotorealistic3DTileset();
-  tileset.maximumScreenSpaceError=2.25;
+  tileset.maximumScreenSpaceError=1.7;
   tileset.dynamicScreenSpaceError=false;
   tileset.cullRequestsWhileMoving=false;
   tileset.preloadWhenHidden=true;
+  tileset.preloadFlightDestinations=true;
   viewer.scene.primitives.add(tileset);
 
   // Turn the daylight photogrammetry into a moody night treatment.
@@ -147,12 +170,12 @@ try{
         float l=dot(c,vec3(0.2126,0.7152,0.0722));
 
         // Keep far more midtone detail so the photogrammetry still has depth.
-        vec3 n=c*vec3(0.28,0.33,0.43);
-        n=mix(n,vec3(l*0.16,l*0.19,l*0.27),0.22);
+        vec3 n=c*vec3(0.36,0.40,0.50);
+        n=mix(n,vec3(l*0.20,l*0.23,l*0.31),0.18);
 
         // Bright photographic details become warm practical/city light.
         float lamp=smoothstep(0.62,0.94,l);
-        n+=vec3(0.92,0.43,0.14)*lamp*0.46;
+        n+=vec3(0.92,0.43,0.14)*lamp*0.34;
 
         // Cool shadow floor preserves façades and street depth.
         n+=vec3(0.018,0.025,0.043);
