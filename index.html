@@ -1,476 +1,308 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Pilgrim's Pace</title>
-<meta name="theme-color" content="#050505">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.2.0/dist/maplibre-gl.css">
-<style>
-:root{
-  --fg:#f2eee6;
-  --muted:rgba(242,238,230,.62);
-  --line:rgba(255,255,255,.16);
-  --glass:rgba(6,6,5,.78);
-  --gold:#d8b36e;
-  --safe-t:max(16px,env(safe-area-inset-top));
-  --safe-r:max(16px,env(safe-area-inset-right));
-  --safe-b:max(16px,env(safe-area-inset-bottom));
-  --safe-l:max(16px,env(safe-area-inset-left));
-}
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050505;color:var(--fg);font-family:Arial,Helvetica,sans-serif}
-button,a{font:inherit;color:inherit}
-#app{position:relative;width:100%;height:100dvh;min-height:560px;overflow:hidden;background:#050505}
-#map,#interior{position:absolute;inset:0}
-#map{z-index:1;background:#050505}
-#interior{z-index:2;display:none;width:100%;height:100%;touch-action:none}
-#nightGrade{
-  position:absolute;z-index:8;inset:0;pointer-events:none;
-  background:
-    radial-gradient(circle at 58% 41%,rgba(255,175,75,.10),transparent 18%),
-    radial-gradient(circle at 42% 67%,rgba(255,128,40,.075),transparent 22%),
-    linear-gradient(180deg,rgba(1,4,10,.18),transparent 40%,rgba(0,0,0,.20));
-  mix-blend-mode:screen
-}
-body:not([data-room="downtown"]):not([data-room="drive"]):not([data-room="fountain"]) #nightGrade{display:none}
-#veil{position:absolute;inset:0;z-index:45;background:#050505;opacity:0;pointer-events:none;transition:opacity .32s ease}
-#veil.on{opacity:1}
-.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{display:none!important}
-.maplibregl-canvas{filter:saturate(.72) contrast(1.17) brightness(.66)}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pilgrim's Pace</title>
 
-.hotspot{
-  width:48px;height:48px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.72);
-  background:rgba(3,3,3,.22);backdrop-filter:blur(6px);
-  display:grid;place-items:center;cursor:pointer;
-  box-shadow:0 8px 30px rgba(0,0,0,.34),0 0 22px rgba(216,179,110,.12);
-  transition:transform .18s ease,opacity .25s ease,background .18s ease
-}
-.hotspot::before{content:"→";font-size:24px;line-height:1;transform:translateY(-1px)}
-.hotspot:hover{transform:scale(1.06);background:rgba(5,5,4,.50)}
-.hotspot.gold{border-color:rgba(226,187,111,.96);color:#f2d49b;box-shadow:0 8px 30px rgba(0,0,0,.34),0 0 28px rgba(216,179,110,.24)}
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Cesium.js"></script>
+  <link
+    href="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
 
-#back{
-  position:absolute;z-index:31;left:var(--safe-l);bottom:var(--safe-b);
-  width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.4);
-  background:rgba(5,5,4,.35);backdrop-filter:blur(12px);display:none;place-items:center;
-  cursor:pointer;font-size:24px;box-shadow:0 10px 30px rgba(0,0,0,.28)
-}
-body:not([data-room="downtown"]) #back{display:grid}
-body[data-room="drive"] #back,body[data-room="fountain"] #back{display:grid}
+  <style>
+    html, body, #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #050505;
+    }
 
-#release{
-  position:absolute;z-index:35;right:clamp(14px,3vw,48px);top:50%;
-  transform:translateY(-50%);display:none;
-  width:min(360px,calc(100vw - 28px));padding:13px;border-radius:20px;
-  border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(22px);
-  box-shadow:0 25px 72px rgba(0,0,0,.54)
-}
-body[data-room="work"] #release.open{display:block}
-#release .close{
-  position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.38);cursor:pointer;font-size:19px
-}
-#release img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px;margin-bottom:12px;box-shadow:0 16px 42px rgba(0,0,0,.42)}
-.services{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.service{
-  min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:0 12px;border:1px solid rgba(255,255,255,.13);border-radius:12px;
-  text-decoration:none;background:rgba(255,255,255,.025);font-size:12px
-}
-.service span:last-child{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.service:hover{background:rgba(255,255,255,.07)}
+    .cesium-widget-credits {
+      display: block !important;
+    }
 
-#hint{
-  position:absolute;z-index:28;left:50%;bottom:var(--safe-b);transform:translateX(-50%);
-  padding:8px 11px;border:1px solid rgba(255,255,255,.12);border-radius:999px;
-  background:rgba(4,4,4,.28);backdrop-filter:blur(10px);
-  color:rgba(255,255,255,.55);font-size:8px;letter-spacing:.14em;text-transform:uppercase;
-  pointer-events:none;opacity:0;transition:opacity .25s ease
-}
-body[data-room="work"] #hint,body[data-room="production"] #hint{opacity:1}
+    #backBtn {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      z-index: 20;
+      width: 50px;
+      height: 50px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.35);
+      background: rgba(0,0,0,.35);
+      color: white;
+      font-size: 22px;
+      cursor: pointer;
+      display: none;
+    }
 
-#load{position:absolute;z-index:60;inset:0;background:#050505;display:grid;place-items:center;transition:opacity .4s ease}
-#load.hide{opacity:0;pointer-events:none}
-#loadTrack{width:min(220px,54vw);height:1px;background:rgba(255,255,255,.13);overflow:hidden}
-#loadBar{height:100%;width:0;background:var(--gold);transition:width .3s ease}
+    #roomPanel {
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: min(360px, calc(100vw - 36px));
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(5,5,5,.78);
+      backdrop-filter: blur(18px);
+      color: white;
+      z-index: 30;
+      display: none;
+    }
 
-@media(max-width:780px){
-  #release{left:12px;right:12px;top:auto;bottom:78px;transform:none;width:auto;max-height:73vh;overflow:auto}
-  .services{grid-template-columns:1fr}
-  .hotspot{width:44px;height:44px}
-  #hint{bottom:calc(var(--safe-b) + 4px);white-space:nowrap}
-}
-@media(prefers-reduced-motion:reduce){#veil,#load,.hotspot{transition:none}}
-</style>
+    #roomPanel img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 12px;
+      display: block;
+      margin-bottom: 12px;
+    }
 
-<script type="importmap">
-{
-  "imports":{
-    "three":"https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js",
-    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/"
-  }
-}
-</script>
+    .services {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .service {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      color: white;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .hotspot {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.7);
+      background: rgba(0,0,0,.22);
+      color: white;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      z-index: 15;
+      backdrop-filter: blur(5px);
+    }
+
+    .hotspot.gold {
+      border-color: rgba(216,179,110,.95);
+      color: #f3d7a3;
+    }
+  </style>
 </head>
-<body data-room="downtown">
-<div id="app">
-  <div id="map"></div>
-  <canvas id="interior"></canvas>
-  <div id="nightGrade"></div>
-  <div id="veil"></div>
-  <button id="back" aria-label="Back">←</button>
-  <div id="hint">drag to look around · tap the laptop</div>
+<body>
+  <div id="cesiumContainer"></div>
 
-  <section id="release" aria-label="Listen">
-    <button class="close" id="releaseClose" aria-label="Close">×</button>
-    <img src="https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg" alt="Pilgrim's Pace cover artwork">
+  <button id="backBtn">←</button>
+
+  <div id="roomPanel">
+    <img src="YOUR_COVER_ART_URL_HERE" alt="Pilgrim's Pace cover" />
     <div class="services">
-      <a class="service" href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz?si=8Lk2luENT92Kbbb_65MvcQ&utm_source=copy-link" target="_blank" rel="noopener noreferrer"><span>Spotify</span><span>Listen</span></a>
-      <a class="service" href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank" rel="noopener noreferrer"><span>Apple Music</span><span>Listen</span></a>
-      <a class="service" href="https://music.youtube.com/watch?v=ROwIV9T7IIc&si=0AdnKWGgAymDhcqf" target="_blank" rel="noopener noreferrer"><span>YouTube Music</span><span>Listen</span></a>
-      <a class="service" href="https://music.amazon.com.au/albums/B0HKZ3QZ2M?marketplaceId=A39IBJ37TRP1C6&musicTerritory=AU&ref=dm_sh_pVFmZyiynyFVsL5KDXfGFj46I" target="_blank" rel="noopener noreferrer"><span>Amazon Music</span><span>Listen</span></a>
-      <a class="service" href="https://tidal.com/album/564211468/u" target="_blank" rel="noopener noreferrer"><span>TIDAL</span><span>Listen</span></a>
+      <a class="service" href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz?si=8Lk2luENT92Kbbb_65MvcQ&utm_source=copy-link" target="_blank">Spotify</a>
+      <a class="service" href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank">Apple</a>
+      <a class="service" href="https://music.youtube.com/watch?v=ROwIV9T7IIc&si=0AdnKWGgAymDhcqf" target="_blank">YouTube</a>
+      <a class="service" href="https://music.amazon.com.au/albums/B0HKZ3QZ2M?marketplaceId=A39IBJ37TRP1C6&musicTerritory=AU&ref=dm_sh_pVFmZyiynyFVsL5KDXfGFj46I" target="_blank">Amazon</a>
+      <a class="service" href="https://tidal.com/album/564211468/u" target="_blank">TIDAL</a>
     </div>
-  </section>
+  </div>
 
-  <div id="load"><div id="loadTrack"><div id="loadBar"></div></div></div>
-</div>
+  <script type="module">
+    Cesium.Ion.defaultAccessToken = "PASTE_YOUR_TOKEN_HERE";
 
-<script type="module">
-import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.2.0/dist/maplibre-gl.mjs';
-import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
+    const viewer = new Cesium.Viewer("cesiumContainer", {
+      animation: false,
+      timeline: false,
+      geocoder: false,
+      baseLayerPicker: false,
+      homeButton: false,
+      sceneModePicker: false,
+      navigationHelpButton: false,
+      infoBox: false,
+      selectionIndicator: false,
+      fullscreenButton: false,
+      shouldAnimate: true
+    });
 
-const mapEl=document.getElementById('map');
-const canvas=document.getElementById('interior');
-const veil=document.getElementById('veil');
-const back=document.getElementById('back');
-const load=document.getElementById('load');
-const loadBar=document.getElementById('loadBar');
-const release=document.getElementById('release');
-document.getElementById('releaseClose').addEventListener('click',()=>release.classList.remove('open'));
+    viewer.scene.globe.show = false;
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.fog.enabled = true;
+    viewer.scene.postProcessStages.fxaa.enabled = true;
+    viewer.scene.highDynamicRange = true;
 
-const views={
-  downtown:{center:[55.27455,25.19715],zoom:15.72,pitch:74,bearing:-31},
-  drive:{center:[55.27085,25.19355],zoom:17.25,pitch:79,bearing:40},
-  fountain:{center:[55.27515,25.19545],zoom:17.72,pitch:77,bearing:-9}
-};
+    const tileset = await Cesium.createGooglePhotorealistic3DTileset();
+    viewer.scene.primitives.add(tileset);
 
-const map=new maplibregl.Map({
-  container:'map',
-  style:'https://tiles.openfreemap.org/styles/liberty',
-  center:views.downtown.center,zoom:views.downtown.zoom,pitch:views.downtown.pitch,bearing:views.downtown.bearing,
-  maxPitch:85,minZoom:14.5,maxZoom:19.5,maxBounds:[[55.255,25.184],[55.292,25.212]],
-  attributionControl:false,canvasContextAttributes:{antialias:true}
-});
+    viewer.clock.currentTime = Cesium.JulianDate.now();
 
-/* Burj custom 3D layer */
-const burjOrigin=[55.274376,25.197197];
-const burjMerc=maplibregl.MercatorCoordinate.fromLngLat(burjOrigin,0);
-const modelTransform={translateX:burjMerc.x,translateY:burjMerc.y,translateZ:burjMerc.z,rotateX:Math.PI/2,rotateY:0,rotateZ:0,scale:burjMerc.meterInMercatorCoordinateUnits()};
-const burjLayer={
-  id:'burj-khalifa-model',type:'custom',renderingMode:'3d',
-  onAdd(map,gl){
-    this.camera=new THREE.Camera();this.scene=new THREE.Scene();
-    this.scene.add(new THREE.HemisphereLight(0x839dce,0x1a0c03,1.8));
-    const warm=new THREE.DirectionalLight(0xffbf7a,5.4);warm.position.set(-25,-38,75);this.scene.add(warm);
-    const cool=new THREE.DirectionalLight(0x89baff,3.1);cool.position.set(40,28,72);this.scene.add(cool);
-    const crown=new THREE.PointLight(0xffc36e,7,0);crown.position.set(0,0,700);this.scene.add(crown);
-    new GLTFLoader().load('https://cdn.jsdelivr.net/gh/hszzhua2/world-architecture-atlas-3d@clean-main/apps/geolibre-desktop/public/models/burj-khalifa.glb',gltf=>{
-      const obj=gltf.scene,box=new THREE.Box3().setFromObject(obj),h=Math.max(.001,box.max.y-box.min.y);
-      obj.scale.setScalar(828/h);const box2=new THREE.Box3().setFromObject(obj);obj.position.y-=box2.min.y;
-      obj.traverse(n=>{
-        if(n.isMesh&&n.material){
-          n.material.metalness=Math.max(n.material.metalness||0,.28);
-          n.material.roughness=Math.min(n.material.roughness??.6,.42);
-          if('emissive' in n.material){n.material.emissive=new THREE.Color(0x2b1608);n.material.emissiveIntensity=.38}
+    // Dubai Downtown / Burj Khalifa start
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(55.2744, 25.1972, 1400),
+      orientation: {
+        heading: Cesium.Math.toRadians(25),
+        pitch: Cesium.Math.toRadians(-38),
+        roll: 0
+      },
+      duration: 2.5
+    });
+
+    // Hotspots
+    const hotspots = [
+      {
+        name: "Drive",
+        lon: 55.2708,
+        lat: 25.1936,
+        height: 35,
+        room: "drive"
+      },
+      {
+        name: "Fountain",
+        lon: 55.2752,
+        lat: 25.1955,
+        height: 25,
+        room: "fountain"
+      },
+      {
+        name: "Work",
+        lon: 55.2780,
+        lat: 25.2003,
+        height: 35,
+        room: "work",
+        gold: true
+      },
+      {
+        name: "Production",
+        lon: 55.2702,
+        lat: 25.2004,
+        height: 35,
+        room: "production",
+        gold: true
+      }
+    ];
+
+    const container = document.body;
+    const hotspotEls = [];
+    const backBtn = document.getElementById("backBtn");
+    const roomPanel = document.getElementById("roomPanel");
+
+    hotspots.forEach(h => {
+      const el = document.createElement("button");
+      el.className = "hotspot" + (h.gold ? " gold" : "");
+      el.textContent = "→";
+      el.title = h.name;
+      el.onclick = () => openRoom(h.room);
+      container.appendChild(el);
+      hotspotEls.push({
+        el,
+        position: Cesium.Cartesian3.fromDegrees(h.lon, h.lat, h.height),
+        room: h.room
+      });
+    });
+
+    function updateHotspots() {
+      hotspotEls.forEach(h => {
+        const canvasPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
+          viewer.scene,
+          h.position
+        );
+
+        if (Cesium.defined(canvasPos)) {
+          h.el.style.display = "grid";
+          h.el.style.left = `${canvasPos.x - 24}px`;
+          h.el.style.top = `${canvasPos.y - 24}px`;
+        } else {
+          h.el.style.display = "none";
         }
       });
-      this.scene.add(obj);map.triggerRepaint();
-    });
-    this.map=map;this.renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl,antialias:true});
-    this.renderer.autoClear=false;
-  },
-  render(gl,args){
-    const rx=new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0),modelTransform.rotateX);
-    const ry=new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,1,0),modelTransform.rotateY);
-    const rz=new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,0,1),modelTransform.rotateZ);
-    const m=new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);
-    const l=new THREE.Matrix4().makeTranslation(modelTransform.translateX,modelTransform.translateY,modelTransform.translateZ)
-      .scale(new THREE.Vector3(modelTransform.scale,-modelTransform.scale,modelTransform.scale)).multiply(rx).multiply(ry).multiply(rz);
-    this.camera.projectionMatrix=m.multiply(l);this.renderer.resetState();this.renderer.render(this.scene,this.camera);this.map.triggerRepaint();
-  }
-};
-
-const markerDefs=[
-  {room:'drive',coord:[55.2706,25.1937]},
-  {room:'fountain',coord:[55.2750,25.1956]},
-  {room:'work',coord:[55.2780,25.2003],gold:true},
-  {room:'production',coord:[55.2702,25.2004],gold:true}
-];
-const markers=[];
-function makeMarker(d){
-  const el=document.createElement('button');el.className='hotspot'+(d.gold?' gold':'');el.setAttribute('aria-label','Open '+d.room);
-  el.addEventListener('click',e=>{e.stopPropagation();openRoom(d.room)});
-  const m=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(d.coord).addTo(map);
-  markers.push({m,el,room:d.room});
-}
-
-/* tiny Dubai-night lights */
-function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
-const rnd=mulberry32(1971);
-const lightFeatures=[];
-for(let i=0;i<260;i++){
-  const lng=55.263+rnd()*.024,lat=25.188+rnd()*.018;
-  lightFeatures.push({type:'Feature',properties:{kind:rnd()>.73?'white':'amber',size:1.2+rnd()*2.3},geometry:{type:'Point',coordinates:[lng,lat]}});
-}
-const trafficRoute=[
-  [55.2668,25.1918],[55.2692,25.1932],[55.2722,25.1942],[55.2750,25.1943],
-  [55.2782,25.1954],[55.2794,25.1980],[55.2771,25.2003],[55.2733,25.2008],[55.2692,25.1986],[55.2668,25.1957],[55.2668,25.1918]
-];
-function routePoint(t){
-  const n=trafficRoute.length-1,ft=(t%1)*n,i=Math.floor(ft),f=ft-i,a=trafficRoute[i],b=trafficRoute[Math.min(i+1,n)];
-  return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
-}
-let trafficTimer=null;
-function startTraffic(){
-  if(trafficTimer)return;
-  let phase=0;
-  trafficTimer=setInterval(()=>{
-    phase=(phase+.008)%1;
-    const feats=[];
-    for(let i=0;i<14;i++)feats.push({type:'Feature',properties:{kind:i%2?'tail':'head'},geometry:{type:'Point',coordinates:routePoint((phase+i/14)%1)}});
-    const s=map.getSource('traffic-points');if(s)s.setData({type:'FeatureCollection',features:feats});
-  },80);
-}
-
-map.on('load',()=>{
-  for(const layer of map.getStyle().layers){
-    try{
-      if(layer.type==='symbol')map.setLayoutProperty(layer.id,'visibility','none');
-      if(layer.type==='background')map.setPaintProperty(layer.id,'background-color','#04070b');
-      if(layer.type==='line'){
-        map.setPaintProperty(layer.id,'line-color','#5b3b20');map.setPaintProperty(layer.id,'line-opacity',.62);
-      }
-      if(layer.type==='fill'){
-        const id=layer.id.toLowerCase(),water=id.includes('water');
-        map.setPaintProperty(layer.id,'fill-color',water?'#071216':'#0d0d0c');
-        map.setPaintProperty(layer.id,'fill-opacity',water?.96:.91);
-      }
-    }catch(e){}
-  }
-  if(!map.getSource('openfreemap'))map.addSource('openfreemap',{url:'https://tiles.openfreemap.org/planet',type:'vector'});
-  const firstSymbol=map.getStyle().layers.find(l=>l.type==='symbol')?.id;
-  map.addLayer({
-    id:'3d-buildings',source:'openfreemap','source-layer':'building',type:'fill-extrusion',minzoom:14.5,
-    paint:{
-      'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],0],0,'#121211',45,'#1d1916',120,'#2b231d',260,'#3a3027',600,'#51473d'],
-      'fill-extrusion-height':['coalesce',['get','render_height'],['get','height'],8],
-      'fill-extrusion-base':['coalesce',['get','render_min_height'],['get','min_height'],0],
-      'fill-extrusion-opacity':.98,'fill-extrusion-vertical-gradient':true
     }
-  },firstSymbol);
-  try{map.setLight({anchor:'map',color:'#ffbd78',intensity:.72,position:[1.15,215,38]})}catch(e){}
-  map.addLayer(burjLayer);
 
-  map.addSource('night-lights',{type:'geojson',data:{type:'FeatureCollection',features:lightFeatures}});
-  map.addLayer({id:'night-light-glow',type:'circle',source:'night-lights',paint:{
-    'circle-radius':['interpolate',['linear'],['zoom'],14,1.1,19,3.6],
-    'circle-color':['case',['==',['get','kind'],'white'],'#d8e8ff','#ffb45d'],
-    'circle-opacity':.48,'circle-blur':.8
-  }});
-  map.addLayer({id:'night-light-core',type:'circle',source:'night-lights',paint:{
-    'circle-radius':['interpolate',['linear'],['zoom'],14,.35,19,1.25],
-    'circle-color':['case',['==',['get','kind'],'white'],'#f3f7ff','#ffd18d'],
-    'circle-opacity':.92,'circle-blur':.18
-  }});
+    viewer.scene.postRender.addEventListener(updateHotspots);
 
-  map.addSource('traffic-route',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:trafficRoute},properties:{}}});
-  map.addLayer({id:'traffic-glow',type:'line',source:'traffic-route',paint:{'line-color':'#ff8b3d','line-width':5,'line-opacity':.14,'line-blur':5}});
-  map.addSource('traffic-points',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-  map.addLayer({id:'traffic-points-glow',type:'circle',source:'traffic-points',paint:{
-    'circle-radius':4,'circle-blur':.7,'circle-opacity':.74,
-    'circle-color':['case',['==',['get','kind'],'tail'],'#ff3b24','#f7ead0']
-  }});
-  map.addLayer({id:'traffic-points-core',type:'circle',source:'traffic-points',paint:{
-    'circle-radius':1.35,'circle-opacity':1,
-    'circle-color':['case',['==',['get','kind'],'tail'],'#ff5a40','#ffffff']
-  }});
-  startTraffic();markerDefs.forEach(makeMarker);
-  setTimeout(()=>load.classList.add('hide'),700);
-});
+    let currentRoom = "downtown";
 
-/* INTERIORS: built at real-world scale. No lounge, no people. */
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight,false);
-renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    function hideHotspots(hidden) {
+      hotspotEls.forEach(h => {
+        h.el.style.opacity = hidden ? "0" : "1";
+        h.el.style.pointerEvents = hidden ? "none" : "auto";
+      });
+    }
 
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x070707);
-const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.03,80);
-const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.enablePan=false;controls.maxPolarAngle=Math.PI*.57;controls.minPolarAngle=Math.PI*.17;
+    function openRoom(room) {
+      currentRoom = room;
+      backBtn.style.display = "block";
 
-scene.add(new THREE.HemisphereLight(0x95a9d4,0x170b05,.92));
-const work=new THREE.Group(),production=new THREE.Group();scene.add(work,production);work.visible=false;production.visible=false;
-const clickable=[];
+      if (room === "drive") {
+        roomPanel.style.display = "none";
+        hideHotspots(true);
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(55.2708, 25.1936, 250),
+          orientation: {
+            heading: Cesium.Math.toRadians(55),
+            pitch: Cesium.Math.toRadians(-25),
+            roll: 0
+          },
+          duration: 2
+        });
+      }
 
-function mat(color,rough=.55,metal=.05){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal})}
-const wood=mat(0x3b281b,.62,.03),dark=mat(0x151515,.5,.16),wall=mat(0x191715,.83,0),floorMat=mat(0x2a211a,.68,.02);
-const glass=new THREE.MeshPhysicalMaterial({color:0x8eb0c2,roughness:.08,metalness:.02,transparent:true,opacity:.18,transmission:.45,thickness:.04});
+      if (room === "fountain") {
+        roomPanel.style.display = "none";
+        hideHotspots(true);
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(55.2752, 25.1955, 180),
+          orientation: {
+            heading: Cesium.Math.toRadians(10),
+            pitch: Cesium.Math.toRadians(-30),
+            roll: 0
+          },
+          duration: 2
+        });
+      }
 
-function boxMesh(w,h,d,m,pos,parent,cast=true){
-  const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(...pos);o.castShadow=cast;o.receiveShadow=true;parent.add(o);return o
-}
-function buildShell(g,accent=0xffae61){
-  boxMesh(7,.08,6,floorMat,[0,.04,0],g,false);
-  boxMesh(.10,3.05,6,wall,[-3.5,1.53,0],g);boxMesh(.10,3.05,6,wall,[3.5,1.53,0],g);
-  boxMesh(7,.10,6,mat(0x101010,.9,0),[0,3.05,0],g,false);
-  boxMesh(1.5,3.05,.10,wall,[-2.75,1.53,-3],g);boxMesh(1.5,3.05,.10,wall,[2.75,1.53,-3],g);
-  boxMesh(4,0.55,.10,wall,[0,.275,-3],g);boxMesh(4,.65,.10,wall,[0,2.725,-3],g);
-  const win=boxMesh(4,1.9,.025,glass,[0,1.55,-2.94],g,false);
-  const led=boxMesh(4.1,.025,.04,new THREE.MeshBasicMaterial({color:accent}),[0,.56,-2.88],g,false);
-  const warmLight=new THREE.RectAreaLight(accent,7,3.6,.8);warmLight.position.set(0,2.72,-2.65);warmLight.lookAt(0,1.2,0);g.add(warmLight);
-  const key=new THREE.PointLight(accent,18,7,2);key.position.set(-1.8,2.2,1.4);key.castShadow=true;g.add(key);
-}
-buildShell(work,0xffa552);buildShell(production,0xffc36b);
+      if (room === "work") {
+        roomPanel.style.display = "block";
+        hideHotspots(true);
+        // Replace later with custom interior room overlay / canvas scene
+      }
 
-function desk(g,x=0,z=-.7,w=2.0){
-  boxMesh(w,.08,.78,wood,[x,.76,z],g);
-  boxMesh(.08,.73,.68,dark,[x-w*.43,.365,z],g);boxMesh(.08,.73,.68,dark,[x+w*.43,.365,z],g);
-}
-desk(work,0,-.72,2.15);desk(production,.25,-.86,2.45);
+      if (room === "production") {
+        roomPanel.style.display = "none";
+        hideHotspots(true);
+        // Replace later with production room interior
+      }
+    }
 
-function chair(g,x,z){
-  boxMesh(.58,.10,.58,mat(0x191919,.8,.05),[x,.48,z],g);
-  boxMesh(.58,.75,.10,mat(0x171717,.86,.03),[x,.89,z+.25],g);
-  boxMesh(.08,.42,.08,dark,[x,.25,z],g);
-}
-chair(work,0,.65);chair(production,.3,.75);
+    backBtn.onclick = () => {
+      currentRoom = "downtown";
+      roomPanel.style.display = "none";
+      hideHotspots(false);
+      backBtn.style.display = "none";
 
-/* Audio interface + lamp in work room */
-boxMesh(.46,.08,.24,mat(0x242424,.32,.55),[-.62,.86,-.63],work);
-for(let i=0;i<4;i++){
-  const k=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.025,18),mat(0xb7aaa0,.25,.75));k.rotation.x=Math.PI/2;k.position.set(-.77+i*.10,.86,-.50);work.add(k);
-}
-const lampStem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.75,16),mat(0x222222,.3,.55));lampStem.position.set(1.0,1.15,-.7);work.add(lampStem);
-const lampShade=new THREE.Mesh(new THREE.ConeGeometry(.18,.24,24,1,true),mat(0x3b342d,.55,.2));lampShade.position.set(1,1.55,-.7);lampShade.rotation.z=Math.PI;work.add(lampShade);
-const lampLight=new THREE.PointLight(0xffb76e,20,3.8,2);lampLight.position.set(1,1.48,-.58);work.add(lampLight);
-
-/* Production desk: two MPC-style samplers built as real 3D controls */
-function makeMPC(parent,x,z,modern=false){
-  const g=new THREE.Group();g.position.set(x,.85,z);parent.add(g);
-  const body=boxMesh(.62,.10,.43,mat(modern?0x16181b:0x2a2927,.34,.32),[0,0,0],g);
-  body.rotation.x=-.045;
-  const screen=boxMesh(.20,.012,.085,new THREE.MeshBasicMaterial({color:modern?0x5ed1ff:0x6fa37c}),[.13,.063,-.12],g,false);screen.rotation.x=-.045;
-  for(let r=0;r<4;r++)for(let c=0;c<4;c++){
-    const pad=boxMesh(.065,.014,.055,mat(0x45413c,.55,.12),[-.19+c*.073,.069,-.045+r*.063],g,false);pad.rotation.x=-.045;
-  }
-  for(let i=0;i<5;i++){
-    const knob=new THREE.Mesh(new THREE.CylinderGeometry(.016,.016,.025,18),mat(0x080808,.45,.45));
-    knob.position.set(.18+i*.055,.074,.055);knob.rotation.x=Math.PI/2;g.add(knob);
-  }
-  const badge=boxMesh(.10,.008,.025,new THREE.MeshBasicMaterial({color:modern?0xdfdfdf:0xb89c66}),[-.20,.071,-.15],g,false);badge.rotation.x=-.045;
-  return g;
-}
-makeMPC(production,-.35,-.75,false);makeMPC(production,.55,-.74,true);
-
-/* mini MIDI keyboard */
-const keybed=boxMesh(1.25,.07,.28,mat(0x151515,.38,.28),[-.55,.84,.02],production);
-for(let i=0;i<18;i++)boxMesh(.055,.022,.17,mat(0xf2efe7,.58,.02),[-1.02+i*.057,.89,.035],production,false);
-
-/* Vinyl shelf and four named sleeves */
-boxMesh(2.45,.07,.24,wood,[0,1.58,-2.52],production);
-function textTexture(label,bg,fg){
-  const c=document.createElement('canvas');c.width=512;c.height=512;const x=c.getContext('2d');
-  x.fillStyle=bg;x.fillRect(0,0,512,512);
-  x.strokeStyle='rgba(255,255,255,.16)';x.lineWidth=3;x.strokeRect(18,18,476,476);
-  x.fillStyle=fg;x.font='700 48px Arial';x.textAlign='center';x.textBaseline='middle';
-  const parts=label.split(' ');if(parts.length>1){x.fillText(parts.slice(0,-1).join(' '),256,235);x.fillText(parts.at(-1),256,292)}else x.fillText(label,256,264);
-  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t
-}
-const vinyls=[
-  ['KANYE WEST','#5a241d','#f2d6b3'],['DRAKE','#0f1c2f','#d9e8ff'],['SADE','#342423','#f0d8ca'],['JAY Z','#171717','#e3d1a4']
-];
-vinyls.forEach((v,i)=>{
-  const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.42,.42,.025),new THREE.MeshStandardMaterial({map:textTexture(...v),roughness:.6}));
-  sleeve.position.set(-.82+i*.56,1.84,-2.37);sleeve.rotation.x=-.05;sleeve.castShadow=true;production.add(sleeve);
-  const disc=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.008,48),mat(0x090909,.24,.1));
-  disc.rotation.x=Math.PI/2;disc.position.set(-.70+i*.56,1.84,-2.39);production.add(disc);
-});
-
-/* loose books */
-const bookColors=[0x6d3028,0x303f5a,0x5b4b2b,0x244b3e,0x67513d];
-for(let i=0;i<8;i++)boxMesh(.20,.035,.28,mat(bookColors[i%bookColors.length],.78,.02),[2.42,.18+i*.045,-2.55+i*.012],production);
-
-/* Real CC0 props */
-const gltf=new GLTFLoader();let assetCount=0;const totalAssets=7;
-function loaded(){assetCount++;loadBar.style.width=(20+assetCount/totalAssets*80)+'%'}
-function place(url,parent,pos,rot=[0,0,0],scale=1,tag=null){
-  gltf.load(url,g=>{
-    const o=g.scene;o.position.set(...pos);o.rotation.set(...rot);o.scale.setScalar(scale);
-    o.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;if(tag){n.userData.action=tag;clickable.push(n)}}});
-    parent.add(o);loaded();
-  },undefined,()=>loaded());
-}
-place('https://cdn.3dassets.dev/assets/38822/v1/model.glb',work,[0,.81,-.62],[0,0,0],1,'release');
-place('https://cdn.3dassets.dev/assets/38854/v1/model.glb',work,[-.78,.80,-.68],[0,.12,0],1);
-place('https://cdn.3dassets.dev/assets/38854/v1/model.glb',work,[.78,.80,-.68],[0,-.12,0],1);
-place('https://cdn.3dassets.dev/assets/33801/v1/model.glb',work,[1.62,0,-.15],[0,-.35,0],.92);
-place('https://cdn.3dassets.dev/assets/38810/v1/model.glb',production,[-2.65,.05,-2.58],[0,.08,0],1);
-place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',production,[-1.55,.05,-.95],[0,.16,0],.92);
-place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',production,[1.65,.05,-.95],[0,-.16,0],.92);
-
-new RGBELoader().load('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr',tex=>{
-  tex.mapping=THREE.EquirectangularReflectionMapping;scene.environment=tex;scene.background=tex;
-},undefined,()=>{});
-
-/* interior interactions */
-const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=[0,0];
-canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
-canvas.addEventListener('pointerup',e=>{
-  if(document.body.dataset.room!=='work'||Math.hypot(e.clientX-down[0],e.clientY-down[1])>8)return;
-  const r=canvas.getBoundingClientRect();pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;
-  raycaster.setFromCamera(pointer,camera);const hits=raycaster.intersectObjects(clickable,true);
-  if(hits.length&&hits[0].object.userData.action==='release')release.classList.add('open');
-});
-
-function showInterior(room){
-  work.visible=room==='work';production.visible=room==='production';
-  if(room==='work'){
-    camera.position.set(4.7,2.35,5.3);controls.target.set(0,1.05,-.65);controls.minDistance=2.4;controls.maxDistance=7.5;
-  }else{
-    camera.position.set(4.9,2.6,5.4);controls.target.set(0,1.15,-.85);controls.minDistance=2.7;controls.maxDistance=8;
-  }
-  controls.update();
-}
-
-let current='downtown';
-function hideMarkers(v){markers.forEach(x=>{x.el.style.opacity=v?'0':'1';x.el.style.pointerEvents=v?'none':'auto'})}
-function fly(room){const v=views[room];if(v)map.flyTo({center:v.center,zoom:v.zoom,pitch:v.pitch,bearing:v.bearing,duration:1650,essential:true})}
-async function transition(fn){veil.classList.add('on');await new Promise(r=>setTimeout(r,250));fn();requestAnimationFrame(()=>setTimeout(()=>veil.classList.remove('on'),80))}
-async function openRoom(room){
-  if(room===current)return;current=room;document.body.dataset.room=room;history.replaceState(null,'','#'+room);release.classList.remove('open');
-  if(room==='work'||room==='production'){
-    await transition(()=>{mapEl.style.display='none';canvas.style.display='block';hideMarkers(true);showInterior(room)});
-  }else{
-    await transition(()=>{canvas.style.display='none';mapEl.style.display='block';hideMarkers(room!=='downtown');map.resize();fly(room)});
-  }
-}
-back.addEventListener('click',()=>openRoom('downtown'));
-
-const initial=location.hash.slice(1);
-map.once('idle',()=>{if(['drive','fountain','work','production'].includes(initial))openRoom(initial)});
-
-function loop(){requestAnimationFrame(loop);if(canvas.style.display!=='none'){controls.update();renderer.render(scene,camera)}}loop();
-addEventListener('resize',()=>{
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();map.resize();
-});
-
-/* CC0 interior props from 3DAssets.dev. Burj model from World Architecture Atlas 3D (MIT). */
-</script>
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(55.2744, 25.1972, 1400),
+        orientation: {
+          heading: Cesium.Math.toRadians(25),
+          pitch: Cesium.Math.toRadians(-38),
+          roll: 0
+        },
+        duration: 2.2
+      });
+    };
+  </script>
 </body>
 </html>
