@@ -506,6 +506,40 @@ function luxuryDesk(parent,x,z,w=3.2){
   box(parent,.072,.76,.72,MAT.metal,x-w*.44,.40,z);
   box(parent,.072,.76,.72,MAT.metal,x+w*.44,.40,z);
 }
+function premiumStudioDesk(parent,x,z){
+  const g=new THREE.Group();g.position.set(x,0,z);parent.add(g);
+
+  // thicker custom walnut worktop
+  box(g,3.65,.12,.96,MAT.walnut,0,.86,0);
+  box(g,3.52,.014,.90,MAT.brass,0,.928,0,false);
+
+  // deep front / rear aprons give the desk visual weight
+  box(g,3.52,.08,.11,MAT.darkWalnut,0,.76,-.38);
+  box(g,3.52,.08,.11,MAT.darkWalnut,0,.76,.38);
+
+  // rear gear riser
+  box(g,2.72,.10,.28,MAT.darkWalnut,.12,1.015,-.30);
+  box(g,2.60,.014,.25,MAT.brass,.12,1.075,-.30,false);
+
+  // substantial metal frame
+  box(g,.09,.76,.76,MAT.metal,-1.58,.40,0);
+  box(g,.09,.76,.76,MAT.metal,1.58,.40,0);
+  box(g,3.08,.055,.07,MAT.metal,0,.17,.29);
+
+  // left three-drawer pedestal
+  box(g,.64,.70,.72,MAT.darkWalnut,-1.17,.35,.02);
+  box(g,.59,.018,.67,MAT.brass,-1.17,.71,.02,false);
+  for(let i=0;i<3;i++){
+    box(g,.49,.018,.018,new THREE.MeshBasicMaterial({color:0x9a7444}),-1.17,.20+i*.18,.385,false);
+  }
+
+  // right open equipment bay
+  box(g,.73,.56,.72,new THREE.MeshStandardMaterial({color:0x211711,roughness:.74}),1.16,.28,.02);
+  box(g,.65,.018,.66,MAT.brass,1.16,.57,.02,false);
+  box(g,.52,.022,.55,MAT.dark,1.16,.35,.02,false);
+
+  return g;
+}
 function luxuryChair(parent,x,z){
   box(parent,.70,.12,.66,MAT.leather,x,.50,z);
   box(parent,.68,.82,.11,MAT.leather,x,.97,z+.28);
@@ -620,8 +654,14 @@ const laptopHit=box(work,.90,.48,.66,new THREE.MeshBasicMaterial({transparent:tr
 laptopHit.userData.action='release';
 
 // Production room — darker, warmer, more luxurious
-luxuryDesk(production,.15,-.72,3.55);luxuryChair(production,.15,.80);
-speaker(production,-1.32,1.08,-.83);speaker(production,1.74,1.08,-.83);
+premiumStudioDesk(production,.15,-.72);luxuryChair(production,.10,.82);
+
+// speakers on purpose-built stands instead of floating beside the desk
+box(production,.20,.73,.20,MAT.dark,-1.42,.365,-.83);
+box(production,.20,.73,.20,MAT.dark,1.84,.365,-.83);
+box(production,.28,.035,.28,MAT.brass,-1.42,.745,-.83,false);
+box(production,.28,.035,.28,MAT.brass,1.84,.745,-.83,false);
+speaker(production,-1.42,1.08,-.83);speaker(production,1.84,1.08,-.83);
 
 // floating walnut feature wall for the records
 box(production,3.20,1.48,.075,MAT.darkWalnut,.12,1.66,-2.89);
@@ -669,11 +709,32 @@ function mpc(parent,x,z,modern=false){
     const k=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.025,16),MAT.metal);k.rotation.x=Math.PI/2;k.position.set(x+.15+i*.06,.965,z+.06);parent.add(k);
   }
 }
-mpc(production,-.62,-.75,false);mpc(production,.38,-.75,true);
+mpc(production,-.52,-.77,false);mpc(production,.34,-.77,true);
 
-// MIDI keys — shortened and moved left so the right monitor has breathing room
-box(production,1.12,.075,.30,MAT.dark,.82,.89,-.68);
-for(let i=0;i<16;i++)box(production,.052,.021,.17,new THREE.MeshStandardMaterial({color:0xe4dfd5,roughness:.58}),.43+i*.050,.94,-.64,false);
+// MIDI keyboard — properly separated from the right speaker
+box(production,1.08,.075,.30,MAT.dark,.93,.89,-.60);
+for(let i=0;i<16;i++)box(production,.049,.021,.17,new THREE.MeshStandardMaterial({color:0xe4dfd5,roughness:.58}),.57+i*.047,.94,-.56,false);
+
+// lived-in desk details
+box(production,.34,.026,.24,new THREE.MeshStandardMaterial({color:0x2e2018,roughness:.92}),-1.34,.94,-.51,false);
+
+const studioMug=new THREE.Mesh(
+  new THREE.CylinderGeometry(.058,.052,.10,18),
+  new THREE.MeshStandardMaterial({color:0xd7d0c2,roughness:.72})
+);
+studioMug.position.set(-1.03,.98,-.43);studioMug.castShadow=true;production.add(studioMug);
+
+const studioHeadphones=new THREE.Mesh(
+  new THREE.TorusGeometry(.11,.018,10,28,Math.PI),
+  new THREE.MeshStandardMaterial({color:0x101113,roughness:.72,metalness:.10})
+);
+studioHeadphones.rotation.z=Math.PI;studioHeadphones.position.set(1.38,.99,-.44);production.add(studioHeadphones);
+
+box(production,.33,.055,.23,new THREE.MeshStandardMaterial({color:0x202327,roughness:.40,metalness:.42}),1.08,.95,-.98,false);
+for(let i=0;i<3;i++){
+  const knob=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.020,16),MAT.metal);
+  knob.rotation.x=Math.PI/2;knob.position.set(.98+i*.075,.98,-.87);production.add(knob);
+}
 
 // vinyl display shelf
 box(production,2.82,.070,.30,MAT.walnut,.12,1.57,-2.57);
@@ -720,7 +781,7 @@ const viewConfig={
   city:{pos:new THREE.Vector3(24,7.2,19),target:new THREE.Vector3(-1.5,4.3,-1.2),min:10,max:34},
   terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
   work:{pos:new THREE.Vector3(4.1,2.05,4.65),target:new THREE.Vector3(0,1.05,-.65),min:2.3,max:7.5},
-  production:{pos:new THREE.Vector3(4.6,2.18,5.05),target:new THREE.Vector3(.05,1.10,-.75),min:2.5,max:8.0}
+  production:{pos:new THREE.Vector3(4.25,1.95,4.65),target:new THREE.Vector3(.04,1.04,-.70),min:2.5,max:7.5}
 };
 function setCamera(name){
   const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
