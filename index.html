@@ -152,6 +152,7 @@ body[data-view="work"] #roomHint{display:block}
   <button id="workHotspot" class="hotspot gold" data-label="Work Room" aria-label="Enter work room"></button>
   <button id="productionHotspot" class="hotspot gold" data-label="Studio" aria-label="Enter production room"></button>
   <button id="terraceHotspot" class="hotspot" data-label="Waterfront" aria-label="Move to water terrace"></button>
+  <button id="galleryHotspot" class="hotspot gold" data-label="House of Elsewhere" aria-label="Enter The House of Elsewhere"></button>
 
   <button id="back" data-label="Back" aria-label="Back">←</button>
   <div id="roomHint">drag to look around · double tap the laptop / pc</div>
@@ -202,6 +203,7 @@ const DUBAI_POINTS={
   work:[55.27910,25.19755],
   production:[55.27195,25.19415],
   waterfront:[55.27545,25.19535],
+  gallery:[55.26790,25.20010],
   burj:[55.27435,25.19720]
 };
 
@@ -323,14 +325,17 @@ function updateMapUI(){
   const workEl=document.getElementById('workHotspot');
   const prodEl=document.getElementById('productionHotspot');
   const waterEl=document.getElementById('terraceHotspot');
+  const galleryEl=document.getElementById('galleryHotspot');
   if(cityMain){
     positionMapElement(workEl,DUBAI_POINTS.work);
     positionMapElement(prodEl,DUBAI_POINTS.production);
     positionMapElement(waterEl,DUBAI_POINTS.waterfront);
+    positionMapElement(galleryEl,DUBAI_POINTS.gallery);
   }else{
     workEl.style.display='none';
     prodEl.style.display='none';
     waterEl.style.display='none';
+    galleryEl.style.display='none';
   }
   const lab=document.getElementById('burjLabel');
   if(cityMain){
@@ -376,8 +381,9 @@ scene.add(moon);
 const city=new THREE.Group();
 const work=new THREE.Group();
 const production=new THREE.Group();
-scene.add(city,work,production);
-work.visible=false;production.visible=false;
+const gallery=new THREE.Group();
+scene.add(city,work,production,gallery);
+work.visible=false;production.visible=false;gallery.visible=false;
 
 const MAT={
   asphalt:new THREE.MeshStandardMaterial({color:0x090a0b,roughness:.94,metalness:.02}),
@@ -1206,6 +1212,140 @@ function rebuildProductionRoom(){
 rebuildWorkRoom();
 rebuildProductionRoom();
 
+/* ---------- THE HOUSE OF ELSEWHERE ---------- */
+function buildHouseOfElsewhere(){
+  gallery.clear();
+
+  const W=9.0,D=6.8,H=3.65;
+  const plaster=new THREE.MeshStandardMaterial({color:0x30251e,roughness:.94,metalness:.01,side:THREE.DoubleSide});
+  const plasterDark=new THREE.MeshStandardMaterial({color:0x211a16,roughness:.96,metalness:.01,side:THREE.DoubleSide});
+  const floorMat=new THREE.MeshStandardMaterial({color:0x1b120d,roughness:.48,metalness:.03,map:woodTex,bumpMap:woodTex,bumpScale:.014});
+  const frameMat=new THREE.MeshStandardMaterial({color:0x160e0a,roughness:.42,metalness:.05});
+  const brassTrim=new THREE.MeshStandardMaterial({color:0x8e6b39,roughness:.38,metalness:.68});
+
+  // room shell: deliberately closed and intimate, unlike the skyline rooms
+  box(gallery,W,.10,D,floorMat,0,.05,0,false);
+  box(gallery,.12,H,D,plaster,-W/2,H/2,0,false);
+  box(gallery,.12,H,D,plaster,W/2,H/2,0,false);
+  box(gallery,W,H,.12,plaster,0,H/2,-D/2,false);
+  box(gallery,W,.10,D,plasterDark,0,H,0,false);
+  box(gallery,W-.20,.11,.055,MAT.darkWalnut,0,.11,-D/2+.09,false);
+  box(gallery,.055,.11,D-.20,MAT.darkWalnut,-W/2+.09,.11,0,false);
+  box(gallery,.055,.11,D-.20,MAT.darkWalnut,W/2-.09,.11,0,false);
+
+  // central rug + low museum bench
+  box(gallery,4.55,.020,2.05,new THREE.MeshStandardMaterial({color:0x241a14,roughness:.98}),0,.075,.82,false);
+  box(gallery,2.45,.18,.62,MAT.darkWalnut,0,.48,.80,false);
+  box(gallery,2.22,.09,.53,new THREE.MeshStandardMaterial({color:0x3a302b,roughness:.96}),0,.615,.80,false);
+  box(gallery,.12,.43,.12,MAT.darkWalnut,-.96,.255,.80,false);
+  box(gallery,.12,.43,.12,MAT.darkWalnut,.96,.255,.80,false);
+
+  // one atlas contains the eight Krishen Khanna paintings the user supplied.
+  const artLoader=new THREE.TextureLoader();
+  artLoader.setCrossOrigin('anonymous');
+
+  function atlasTexture(i){
+    const t=artLoader.load('assets/gallery/khanna-atlas.webp',tex=>{
+      tex.encoding=THREE.sRGBEncoding;
+      tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
+      tex.repeat.set(.25,.5);
+      const col=i%4,row=Math.floor(i/4);
+      tex.offset.set(col*.25,row===0?.5:0);
+      tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+      tex.needsUpdate=true;
+    });
+    return t;
+  }
+
+  function addFramedArt(parent,{x,y,z,w,h,ry=0,texture,hero=false}){
+    const g=new THREE.Group();
+    g.position.set(x,y,z);
+    g.rotation.y=ry;
+    parent.add(g);
+
+    // shadow gap, frame, inner brass line, image
+    box(g,w+.18,h+.18,.080,frameMat,0,0,0,false);
+    box(g,w+.075,h+.075,.086,brassTrim,0,0,.006,false);
+    box(g,w,h,.092,new THREE.MeshStandardMaterial({color:0x080706,roughness:.80}),0,0,.012,false);
+
+    const art=new THREE.Mesh(
+      new THREE.PlaneGeometry(w-.055,h-.055),
+      new THREE.MeshStandardMaterial({
+        map:texture,color:0xffffff,roughness:hero?.34:.52,metalness:.01,
+        emissive:new THREE.Color(hero?0x291b0d:0x090706),
+        emissiveMap:texture,emissiveIntensity:hero?.16:.035
+      })
+    );
+    art.position.z=.062;
+    g.add(art);
+    return g;
+  }
+
+  // Main canvas: Khawab's own Pilgrim's Pace artwork.
+  const heroTex=artLoader.load('https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg',tex=>{
+    tex.encoding=THREE.sRGBEncoding;
+    tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
+    const a=(tex.image?.width||16)/(tex.image?.height||9);
+    if(a>1){
+      const rx=1/a;
+      tex.repeat.set(rx,1);
+      tex.offset.set((1-rx)/2,0);
+    }else{
+      tex.repeat.set(1,a);
+      tex.offset.set(0,(1-a)/2);
+    }
+    tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+    tex.needsUpdate=true;
+  });
+  addFramedArt(gallery,{x:0,y:2.02,z:-3.29,w:2.32,h:2.32,texture:heroTex,hero:true});
+
+  // Two Khanna works flank the main canvas on the back wall.
+  addFramedArt(gallery,{x:-2.70,y:1.90,z:-3.29,w:1.05,h:1.30,texture:atlasTexture(2)});
+  addFramedArt(gallery,{x: 2.70,y:1.90,z:-3.29,w:1.05,h:1.30,texture:atlasTexture(5)});
+
+  // Three works down each side wall, all facing into the room.
+  [-2.12,-.30,1.52].forEach((z,i)=>{
+    addFramedArt(gallery,{x:-4.40,y:1.83,z,w:1.02,h:1.27,ry:Math.PI/2,texture:atlasTexture([0,1,6][i])});
+    addFramedArt(gallery,{x: 4.40,y:1.83,z,w:1.02,h:1.27,ry:-Math.PI/2,texture:atlasTexture([3,4,7][i])});
+  });
+
+  // Museum lighting. Separate tight spots keep each painting readable without flattening the room.
+  const hemi=new THREE.HemisphereLight(0xb9a48c,0x100b08,.30);
+  gallery.add(hemi);
+
+  function artSpot(x,z,tx,ty,tz,intensity=4.5,angle=.28){
+    const s=new THREE.SpotLight(0xffc98d,intensity,6.8,angle,.62,1.45);
+    s.position.set(x,H-.20,z);
+    s.target.position.set(tx,ty,tz);
+    s.castShadow=true;
+    s.shadow.mapSize.set(512,512);
+    gallery.add(s,s.target);
+  }
+  artSpot(0,-1.45,0,1.90,-3.28,6.8,.31);
+  artSpot(-2.70,-1.40,-2.70,1.85,-3.28,3.4,.25);
+  artSpot( 2.70,-1.40, 2.70,1.85,-3.28,3.4,.25);
+  artSpot(-2.85,.15,-4.30,1.80,.15,3.4,.34);
+  artSpot( 2.85,.15, 4.30,1.80,.15,3.4,.34);
+
+  // Subtle title plaque, small enough to feel like a gallery detail rather than UI.
+  const plaque=document.createElement('canvas');
+  plaque.width=760;plaque.height=150;
+  const px=plaque.getContext('2d');
+  px.fillStyle='#15100d';px.fillRect(0,0,760,150);
+  px.fillStyle='#d4b277';px.font='600 34px Georgia';px.textAlign='center';
+  px.fillText('THE HOUSE OF ELSEWHERE',380,62);
+  px.fillStyle='rgba(212,178,119,.60)';px.font='18px Arial';
+  px.fillText('KHAWAB KOHLI  ·  KRISHEN KHANNA',380,104);
+  const plaqueTex=new THREE.CanvasTexture(plaque);plaqueTex.encoding=THREE.sRGBEncoding;
+  const plaqueMesh=new THREE.Mesh(
+    new THREE.PlaneGeometry(1.55,.30),
+    new THREE.MeshBasicMaterial({map:plaqueTex,toneMapped:false})
+  );
+  plaqueMesh.position.set(0,.53,-3.325);
+  gallery.add(plaqueMesh);
+}
+buildHouseOfElsewhere();
+
 /* ---------- HDR ENVIRONMENT ---------- */
 new THREE.RGBELoader().load(
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr',
@@ -1222,7 +1362,8 @@ const viewConfig={
   city:{pos:new THREE.Vector3(24,7.2,19),target:new THREE.Vector3(-1.5,4.3,-1.2),min:10,max:34},
   terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
   work:{pos:new THREE.Vector3(4.20,1.98,4.45),target:new THREE.Vector3(0,1.08,-.58),min:2.5,max:7.0},
-  production:{pos:new THREE.Vector3(4.85,2.12,5.35),target:new THREE.Vector3(0,1.02,-.48),min:2.8,max:8.2}
+  production:{pos:new THREE.Vector3(4.85,2.12,5.35),target:new THREE.Vector3(0,1.02,-.48),min:2.8,max:8.2},
+  gallery:{pos:new THREE.Vector3(0,1.72,5.35),target:new THREE.Vector3(0,1.70,-2.05),min:3.8,max:7.4}
 };
 function setCamera(name){
   const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
@@ -1240,10 +1381,12 @@ const back=document.getElementById('back');
 const hsWork=document.getElementById('workHotspot');
 const hsProd=document.getElementById('productionHotspot');
 const hsTerrace=document.getElementById('terraceHotspot');
+const hsGallery=document.getElementById('galleryHotspot');
 
 const anchorWork=new THREE.Vector3(9.0,4.3,7.3);
 const anchorProd=new THREE.Vector3(-12.8,3.7,-5.0);
 const anchorTerrace=new THREE.Vector3(-4.7,.85,-.8);
+const anchorGallery=new THREE.Vector3(-2.2,4.4,12.2);
 let current='city';
 
 async function transition(fn){
@@ -1253,13 +1396,14 @@ async function transition(fn){
 async function openView(name){
   if(name===current)return;
   current=name;document.body.dataset.view=name;release.classList.remove('open');
-  hsWork.style.display='none';hsProd.style.display='none';hsTerrace.style.display='none';
+  hsWork.style.display='none';hsProd.style.display='none';hsTerrace.style.display='none';hsGallery.style.display='none';
   history.replaceState(null,'','#'+name);
   await transition(()=>{
     const exterior=(name==='city'||name==='terrace');
     city.visible=(!mapReady&&exterior);
     work.visible=(name==='work');
     production.visible=(name==='production');
+    gallery.visible=(name==='gallery');
 
     if(exterior&&mapReady&&dubaiMap){
       dubaiMap.resize();
@@ -1277,6 +1421,7 @@ async function openView(name){
 hsWork.onclick=()=>openView('work');
 hsProd.onclick=()=>openView('production');
 hsTerrace.onclick=()=>openView('terrace');
+hsGallery.onclick=()=>openView('gallery');
 back.onclick=()=>openView('city');
 document.getElementById('closeRelease').onclick=()=>release.classList.remove('open');
 
@@ -1326,6 +1471,7 @@ function animate(){
       placeHotspot(hsWork,anchorWork,cityMain);
       placeHotspot(hsProd,anchorProd,cityMain);
       placeHotspot(hsTerrace,anchorTerrace,cityMain);
+      placeHotspot(hsGallery,anchorGallery,cityMain);
     }
   }catch(err){
     console.error('render loop error',err);
@@ -1342,7 +1488,7 @@ addEventListener('resize',()=>{
 });
 
 const initial=location.hash.slice(1);
-if(['terrace','work','production'].includes(initial)){
+if(['terrace','work','production','gallery'].includes(initial)){
   setTimeout(()=>openView(initial),450);
 }
 </script>
