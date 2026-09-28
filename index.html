@@ -6,6 +6,7 @@
 <title>Pilgrim's Pace</title>
 <meta name="theme-color" content="#060606">
 <meta name="description" content="Pilgrim's Pace by Khawab Kohli">
+<link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet">
 <style>
 :root{
   --fg:#f1ece2;
@@ -22,7 +23,44 @@
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#060606;color:var(--fg);font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button,a{font:inherit;color:inherit}
 #app{position:relative;width:100%;height:100dvh;min-height:560px;overflow:hidden;background:#060606}
-#world{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#cityMap{position:absolute;inset:0;z-index:0;width:100%;height:100%;background:#050608;opacity:0;pointer-events:none;transition:opacity .45s ease}
+#world{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block;touch-action:none;transition:opacity .45s ease}
+body.map-ready[data-view="city"] #cityMap,
+body.map-ready[data-view="terrace"] #cityMap{opacity:1;pointer-events:auto}
+body.map-ready[data-view="city"] #world,
+body.map-ready[data-view="terrace"] #world{opacity:0;pointer-events:none}
+body[data-view="work"] #cityMap,
+body[data-view="production"] #cityMap{opacity:0;pointer-events:none}
+
+#placeTag{
+  position:absolute;z-index:18;left:var(--safe-l);top:var(--safe-t);
+  display:none;padding:10px 12px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.42);
+  backdrop-filter:blur(12px);box-shadow:0 12px 34px rgba(0,0,0,.28);
+  pointer-events:none
+}
+body.map-ready[data-view="city"] #placeTag,
+body.map-ready[data-view="terrace"] #placeTag{display:block}
+#placeTag b{display:block;font:600 11px/1.15 Arial;letter-spacing:.16em;text-transform:uppercase;color:#f3eadc}
+#placeTag span{display:block;margin-top:5px;font:9px/1.2 Arial;letter-spacing:.08em;text-transform:uppercase;color:rgba(243,234,220,.55)}
+#burjLabel{
+  position:absolute;z-index:17;display:none;pointer-events:none;
+  padding:5px 8px;border:1px solid rgba(212,174,104,.45);border-radius:999px;
+  background:rgba(0,0,0,.42);backdrop-filter:blur(8px);
+  color:#e4c58d;font:8px/1 Arial;letter-spacing:.14em;text-transform:uppercase;
+  white-space:nowrap;transform:translate(-50%,-100%)
+}
+body.map-ready[data-view="city"] #burjLabel,
+body.map-ready[data-view="terrace"] #burjLabel{display:block}
+
+#releaseLaunch{
+  position:absolute;z-index:31;right:var(--safe-r);bottom:var(--safe-b);display:none;
+  border:1px solid rgba(212,174,104,.55);border-radius:999px;
+  padding:11px 14px;background:rgba(8,8,8,.56);backdrop-filter:blur(12px);
+  color:#efd39a;letter-spacing:.08em;text-transform:uppercase;font-size:9px;
+  cursor:pointer;box-shadow:0 12px 36px rgba(0,0,0,.32)
+}
+body[data-view="work"] #releaseLaunch{display:block}
 #vignette{position:absolute;inset:0;z-index:5;pointer-events:none;background:
 radial-gradient(circle at 50% 42%,transparent 42%,rgba(0,0,0,.22) 76%,rgba(0,0,0,.50) 110%),
 linear-gradient(180deg,rgba(0,0,0,.10),transparent 30%,rgba(0,0,0,.13))}
@@ -103,6 +141,7 @@ body[data-view="work"] #roomHint{display:block}
 @media(prefers-reduced-motion:reduce){#fade,#loader,.hotspot{transition:none}}
 </style>
 
+<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -110,7 +149,10 @@ body[data-view="work"] #roomHint{display:block}
 </head>
 <body data-view="city">
 <div id="app">
+  <div id="cityMap" aria-label="Interactive 3D map of Downtown Dubai"></div>
   <canvas id="world"></canvas>
+  <div id="placeTag"><b>Downtown Dubai</b><span>Burj Khalifa · Dubai Fountain</span></div>
+  <div id="burjLabel">Burj Khalifa</div>
   <div id="vignette"></div>
   <div id="fade"></div>
 
@@ -119,7 +161,8 @@ body[data-view="work"] #roomHint{display:block}
   <button id="terraceHotspot" class="hotspot" data-label="Waterfront" aria-label="Move to water terrace"></button>
 
   <button id="back" data-label="Back" aria-label="Back">←</button>
-  <div id="roomHint">drag to look around · tap the laptop</div>
+  <button id="releaseLaunch" aria-label="Open Pilgrim's Pace release">Pilgrim's Pace ↗</button>
+  <div id="roomHint">drag to look around</div>
 
   <section id="release">
     <button class="close" id="closeRelease" aria-label="Close">×</button>
@@ -158,6 +201,143 @@ setTimeout(function(){
 if(typeof THREE==='undefined'){
   throw new Error('Three.js failed to load');
 }
+
+let dubaiMap=null;
+let mapReady=false;
+const DUBAI_HOME={center:[55.27515,25.19655],zoom:16.05,pitch:68,bearing:-24};
+const DUBAI_WATER={center:[55.27545,25.19525],zoom:17.25,pitch:72,bearing:24};
+const DUBAI_POINTS={
+  work:[55.27910,25.19755],
+  production:[55.27195,25.19415],
+  waterfront:[55.27545,25.19535],
+  burj:[55.27435,25.19720]
+};
+
+function initDubaiMap(){
+  if(typeof maplibregl==='undefined') return;
+  try{
+    dubaiMap=new maplibregl.Map({
+      container:'cityMap',
+      style:{
+        version:8,
+        sources:{
+          satellite:{
+            type:'raster',
+            tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize:256,
+            attribution:'Imagery © Esri'
+          },
+          openfreemap:{type:'vector',url:'https://tiles.openfreemap.org/planet'}
+        },
+        layers:[
+          {
+            id:'satellite',
+            type:'raster',
+            source:'satellite',
+            paint:{
+              'raster-saturation':-.16,
+              'raster-contrast':.12,
+              'raster-brightness-min':.03,
+              'raster-brightness-max':.72
+            }
+          }
+        ]
+      },
+      center:DUBAI_HOME.center,
+      zoom:DUBAI_HOME.zoom,
+      pitch:DUBAI_HOME.pitch,
+      bearing:DUBAI_HOME.bearing,
+      maxPitch:80,
+      minZoom:14.4,
+      maxZoom:19,
+      attributionControl:false,
+      canvasContextAttributes:{antialias:true}
+    });
+
+    dubaiMap.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
+
+    dubaiMap.on('load',()=>{
+      try{
+        dubaiMap.addLayer({
+          id:'dubai-water',
+          type:'fill',
+          source:'openfreemap',
+          'source-layer':'water',
+          paint:{
+            'fill-color':'#07151d',
+            'fill-opacity':.33
+          }
+        });
+
+        dubaiMap.addLayer({
+          id:'dubai-3d-buildings',
+          type:'fill-extrusion',
+          source:'openfreemap',
+          'source-layer':'building',
+          minzoom:14,
+          filter:['!=',['get','hide_3d'],true],
+          paint:{
+            'fill-extrusion-color':[
+              'interpolate',['linear'],
+              ['coalesce',['to-number',['get','render_height']],0],
+              0,'#17191c',
+              60,'#22262b',
+              180,'#3c3934',
+              350,'#6a5943',
+              700,'#a77d49'
+            ],
+            'fill-extrusion-height':[
+              'interpolate',['linear'],['zoom'],
+              14.6,0,
+              15.1,['coalesce',['to-number',['get','render_height']],0]
+            ],
+            'fill-extrusion-base':['coalesce',['to-number',['get','render_min_height']],0],
+            'fill-extrusion-opacity':.92
+          }
+        });
+      }catch(e){ console.warn('Map detail layer warning',e); }
+
+      mapReady=true;
+      document.body.classList.add('map-ready');
+      city.visible=false;
+      dubaiMap.resize();
+      updateMapUI();
+    });
+
+    dubaiMap.on('move',updateMapUI);
+    dubaiMap.on('zoom',updateMapUI);
+    dubaiMap.on('rotate',updateMapUI);
+  }catch(e){
+    console.warn('Dubai map fallback active',e);
+  }
+}
+
+function positionMapElement(el,lngLat,offsetY=0){
+  if(!mapReady||!dubaiMap){el.style.display='none';return}
+  const p=dubaiMap.project(lngLat);
+  if(p.x<-90||p.x>innerWidth+90||p.y<-90||p.y>innerHeight+90){el.style.display='none';return}
+  el.style.display='grid';
+  el.style.left=(p.x-el.offsetWidth/2)+'px';
+  el.style.top=(p.y-el.offsetHeight/2+offsetY)+'px';
+}
+
+function updateMapUI(){
+  if(!mapReady||!dubaiMap) return;
+  const cityMain=document.body.dataset.view==='city';
+  positionMapElement(document.getElementById('workHotspot'),DUBAI_POINTS.work);
+  positionMapElement(document.getElementById('productionHotspot'),DUBAI_POINTS.production);
+  positionMapElement(document.getElementById('terraceHotspot'),DUBAI_POINTS.waterfront);
+  if(!cityMain){
+    document.getElementById('workHotspot').style.display='none';
+    document.getElementById('productionHotspot').style.display='none';
+    document.getElementById('terraceHotspot').style.display='none';
+  }
+  const b=dubaiMap.project(DUBAI_POINTS.burj);
+  const lab=document.getElementById('burjLabel');
+  lab.style.left=b.x+'px';lab.style.top=(b.y-12)+'px';
+}
+
+initDubaiMap();
 
 const canvas=document.getElementById('world');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -855,6 +1035,111 @@ studioKey.target.position.set(.10,.78,-.65);
 studioKey.castShadow=true;studioKey.shadow.mapSize.set(512,512);
 production.add(studioKey,studioKey.target);
 
+/* ---------- REALISTIC HERO ROOMS ---------- */
+const heroLoader=new THREE.GLTFLoader();
+
+function normalizeAsset(root,scale=1){
+  root.scale.setScalar(scale);
+  root.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(root);
+  const ctr=new THREE.Vector3();b.getCenter(ctr);
+  root.position.x-=ctr.x;
+  root.position.z-=ctr.z;
+  root.position.y-=b.min.y;
+  root.traverse(n=>{
+    if(n.isMesh){
+      n.castShadow=true;
+      n.receiveShadow=true;
+      if(n.material){
+        n.material.envMapIntensity=.72;
+        n.material.needsUpdate=true;
+      }
+    }
+  });
+  return root;
+}
+
+function roomLighting(parent,warm=.7){
+  const hemi=new THREE.HemisphereLight(0xaab6c7,0x120b07,.48);parent.add(hemi);
+  const key=new THREE.SpotLight(0xffc488,6.5,11,Math.PI*.28,.58,1.35);
+  key.position.set(-2.5,3.0,3.1);key.target.position.set(0,.8,-.3);
+  key.castShadow=true;key.shadow.mapSize.set(512,512);parent.add(key,key.target);
+  const fill=new THREE.PointLight(0x7d9dce,1.7,8,2);fill.position.set(2.8,2.2,1.5);parent.add(fill);
+  if(warm){
+    const practical=new THREE.PointLight(0xffa85d,2.4,5.5,2);practical.position.set(-2.7,1.5,-1.7);parent.add(practical);
+  }
+}
+
+function rebuildWorkRoom(){
+  work.clear();
+  buildRoom(work,{w:7.4,d:5.0,h:3.25});
+  roomLighting(work,.6);
+
+  heroLoader.load('https://cdn.3dassets.dev/assets/38878/v1/model.glb',g=>{
+    const room=normalizeAsset(g.scene,.88);
+    room.position.z=-.28;
+    work.add(room);
+
+    // one hero laptop at the front, dedicated to Pilgrim's Pace
+    addMacbook(work,0,.88,1.18);
+    laptopHit.position.set(0,1.08,1.15);
+    work.add(laptopHit);
+  },undefined,e=>console.warn('Work room model fallback',e));
+}
+
+function rebuildProductionRoom(){
+  production.clear();
+  buildRoom(production,{w:8.4,d:5.6,h:3.25});
+  roomLighting(production,1);
+
+  // treated back wall
+  for(const x of [-2.65,-1.75,-.85,.85,1.75,2.65]){
+    box(production,.58,1.28,.09,MAT.fabric,x,1.72,-2.72,false);
+  }
+
+  const place=(url,pos,rot=0,scale=1)=>{
+    heroLoader.load(url,g=>{
+      const o=normalizeAsset(g.scene,scale);
+      o.rotation.y=rot;
+      o.position.add(new THREE.Vector3(pos[0],pos[1],pos[2]));
+      production.add(o);
+    },undefined,e=>console.warn('Studio asset fallback',url,e));
+  };
+
+  // Real, metre-scale studio equipment from one coherent asset family
+  place('https://cdn.3dassets.dev/assets/33804/v1/model.glb',[0,0,-.52],0,1.00);       // mixing console
+  place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',[-1.48,0,-.86],.10,1.00); // left monitor
+  place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',[1.48,0,-.86],-.10,1.00); // right monitor
+  place('https://cdn.3dassets.dev/assets/33809/v1/model.glb',[0,0,.92],Math.PI,1.00);   // chair
+  place('https://cdn.3dassets.dev/assets/33806/v1/model.glb',[-2.35,0,-.62],.05,1.00); // rack
+  place('https://cdn.3dassets.dev/assets/33806/v1/model.glb',[2.35,0,-.62],-.05,1.00); // rack
+  place('https://cdn.3dassets.dev/assets/33808/v1/model.glb',[2.45,0,1.22],-.62,.95);  // second workstation
+
+  // warm wood record wall
+  box(production,3.10,1.25,.06,MAT.darkWalnut,0,1.75,-2.88,false);
+  box(production,2.92,.035,.22,MAT.walnut,0,1.22,-2.82,false);
+  const recordLoader=new THREE.TextureLoader();recordLoader.setCrossOrigin('anonymous');
+  vinylCovers.forEach((url,i)=>{
+    const mat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.55});
+    const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.48,.48,.025),mat);
+    sleeve.position.set(-.84+i*.56,1.62,-2.80);production.add(sleeve);
+    recordLoader.load(url,t=>{t.encoding=THREE.sRGBEncoding;mat.map=t;mat.needsUpdate=true},undefined,()=>{});
+  });
+
+  // subtle title plaque
+  const sign=document.createElement('canvas');sign.width=1024;sign.height=220;
+  const sx=sign.getContext('2d');
+  sx.fillStyle='rgba(0,0,0,.15)';sx.fillRect(0,0,1024,220);
+  sx.fillStyle='#e8d4ae';sx.font='600 58px Georgia';sx.textAlign='center';sx.fillText("PILGRIM'S PACE",512,96);
+  sx.fillStyle='rgba(232,212,174,.60)';sx.font='500 28px Arial';sx.fillText('KHAWAB KOHLI · 2026',512,150);
+  const st=new THREE.CanvasTexture(sign);st.encoding=THREE.sRGBEncoding;
+  const sm=new THREE.Mesh(new THREE.PlaneGeometry(2.25,.48),new THREE.MeshBasicMaterial({map:st,transparent:true,toneMapped:false}));
+  sm.position.set(0,2.48,-2.835);production.add(sm);
+}
+
+rebuildWorkRoom();
+rebuildProductionRoom();
+
 /* ---------- HDR ENVIRONMENT ---------- */
 new THREE.RGBELoader().load(
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr',
@@ -870,8 +1155,8 @@ new THREE.RGBELoader().load(
 const viewConfig={
   city:{pos:new THREE.Vector3(24,7.2,19),target:new THREE.Vector3(-1.5,4.3,-1.2),min:10,max:34},
   terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
-  work:{pos:new THREE.Vector3(4.1,2.05,4.65),target:new THREE.Vector3(0,1.05,-.65),min:2.3,max:7.5},
-  production:{pos:new THREE.Vector3(4.55,2.08,5.15),target:new THREE.Vector3(.04,1.04,-.72),min:2.7,max:8.0}
+  work:{pos:new THREE.Vector3(4.35,2.05,4.55),target:new THREE.Vector3(0,1.00,-.10),min:2.4,max:7.2},
+  production:{pos:new THREE.Vector3(4.85,2.12,5.35),target:new THREE.Vector3(0,1.02,-.48),min:2.8,max:8.2}
 };
 function setCamera(name){
   const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
@@ -904,10 +1189,22 @@ async function openView(name){
   current=name;document.body.dataset.view=name;release.classList.remove('open');
   history.replaceState(null,'','#'+name);
   await transition(()=>{
-    city.visible=(name==='city'||name==='terrace');
+    const exterior=(name==='city'||name==='terrace');
+    city.visible=(!mapReady&&exterior);
     work.visible=(name==='work');
     production.visible=(name==='production');
-    setCamera(name);
+
+    if(exterior&&mapReady&&dubaiMap){
+      dubaiMap.resize();
+      dubaiMap.flyTo(name==='terrace'?{
+        center:DUBAI_WATER.center,zoom:DUBAI_WATER.zoom,pitch:DUBAI_WATER.pitch,bearing:DUBAI_WATER.bearing,duration:1050
+      }:{
+        center:DUBAI_HOME.center,zoom:DUBAI_HOME.zoom,pitch:DUBAI_HOME.pitch,bearing:DUBAI_HOME.bearing,duration:1050
+      });
+      updateMapUI();
+    }else{
+      setCamera(name);
+    }
   });
 }
 hsWork.onclick=()=>openView('work');
@@ -915,6 +1212,7 @@ hsProd.onclick=()=>openView('production');
 hsTerrace.onclick=()=>openView('terrace');
 back.onclick=()=>openView('city');
 document.getElementById('closeRelease').onclick=()=>release.classList.remove('open');
+document.getElementById('releaseLaunch').onclick=()=>release.classList.add('open');
 
 /* ---------- INTERACTIONS ---------- */
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=[0,0];
@@ -956,9 +1254,13 @@ function animate(){
     renderer.render(scene,camera);
 
     const cityMain=current==='city';
-    placeHotspot(hsWork,anchorWork,cityMain);
-    placeHotspot(hsProd,anchorProd,cityMain);
-    placeHotspot(hsTerrace,anchorTerrace,cityMain);
+    if(mapReady&&dubaiMap){
+      if(cityMain) updateMapUI();
+    }else{
+      placeHotspot(hsWork,anchorWork,cityMain);
+      placeHotspot(hsProd,anchorProd,cityMain);
+      placeHotspot(hsTerrace,anchorTerrace,cityMain);
+    }
   }catch(err){
     console.error('render loop error',err);
   }
@@ -970,6 +1272,7 @@ addEventListener('resize',()=>{
   renderer.setPixelRatio(Math.min(devicePixelRatio,pixelCap));
   renderer.setSize(innerWidth,innerHeight,false);
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  if(dubaiMap) dubaiMap.resize();
 });
 
 const initial=location.hash.slice(1);
