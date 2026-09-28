@@ -161,7 +161,8 @@ if(typeof THREE==='undefined'){
 
 const canvas=document.getElementById('world');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));
+const pixelCap=matchMedia('(max-width:900px)').matches?1.08:1.30;
+renderer.setPixelRatio(Math.min(devicePixelRatio,pixelCap));
 renderer.setSize(innerWidth,innerHeight,false);
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -186,7 +187,7 @@ scene.add(ambient);
 const moon=new THREE.DirectionalLight(0x8ea8df,.88);
 moon.position.set(18,32,18);
 moon.castShadow=true;
-moon.shadow.mapSize.set(1536,1536);
+moon.shadow.mapSize.set(1024,1024);
 moon.shadow.camera.left=-35;moon.shadow.camera.right=35;moon.shadow.camera.top=35;moon.shadow.camera.bottom=-35;
 scene.add(moon);
 
@@ -216,6 +217,69 @@ const MAT={
   brass:new THREE.MeshStandardMaterial({color:0xb58a4b,roughness:.34,metalness:.78})
 };
 
+// lightweight procedural PBR detail: no extra network downloads, no texture-loading roulette
+function seededNoise(seed){
+  let s=seed>>>0;
+  return ()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296};
+}
+function makeSurfaceTexture(kind,seed=1,size=512){
+  const c=document.createElement('canvas');c.width=c.height=size;
+  const x=c.getContext('2d'),rnd=seededNoise(seed);
+  if(kind==='wood'){
+    x.fillStyle='#3a2417';x.fillRect(0,0,size,size);
+    for(let p=0;p<6;p++){
+      const y=p*size/6;
+      x.fillStyle=p%2?'#42291a':'#352116';x.fillRect(0,y,size,size/6);
+      x.fillStyle='rgba(10,5,2,.55)';x.fillRect(0,y,2,size/6);
+      for(let i=0;i<24;i++){
+        const yy=y+rnd()*size/6;
+        x.strokeStyle='rgba(255,215,165,'+(0.015+rnd()*.035)+')';
+        x.lineWidth=.6+rnd()*1.1;x.beginPath();
+        x.moveTo(0,yy);
+        const bend=(rnd()-.5)*18;
+        x.bezierCurveTo(size*.28,yy+bend,size*.72,yy-bend,size,yy+(rnd()-.5)*8);
+        x.stroke();
+      }
+    }
+  }else if(kind==='plaster'){
+    x.fillStyle='#262321';x.fillRect(0,0,size,size);
+    for(let i=0;i<5200;i++){
+      const v=110+Math.floor(rnd()*70);
+      x.fillStyle='rgba('+v+','+(v-4)+','+(v-8)+','+(0.008+rnd()*.018)+')';
+      const r=.3+rnd()*1.4;x.fillRect(rnd()*size,rnd()*size,r,r);
+    }
+  }else if(kind==='fabric'){
+    x.fillStyle='#262220';x.fillRect(0,0,size,size);
+    x.strokeStyle='rgba(255,255,255,.035)';x.lineWidth=1;
+    for(let i=0;i<size;i+=4){x.beginPath();x.moveTo(i,0);x.lineTo(i,size);x.stroke();}
+    x.strokeStyle='rgba(0,0,0,.12)';
+    for(let i=0;i<size;i+=5){x.beginPath();x.moveTo(0,i);x.lineTo(size,i);x.stroke();}
+  }else if(kind==='asphalt'){
+    x.fillStyle='#111214';x.fillRect(0,0,size,size);
+    for(let i=0;i<7000;i++){
+      const v=80+Math.floor(rnd()*80);
+      x.fillStyle='rgba('+v+','+v+','+v+','+(0.015+rnd()*.025)+')';
+      const r=.4+rnd()*1.3;x.fillRect(rnd()*size,rnd()*size,r,r);
+    }
+  }
+  const t=new THREE.CanvasTexture(c);
+  t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  return t;
+}
+const woodTex=makeSurfaceTexture('wood',14);woodTex.repeat.set(4,3);
+const plasterTex=makeSurfaceTexture('plaster',8);plasterTex.repeat.set(3,2);
+const fabricTex=makeSurfaceTexture('fabric',3);fabricTex.repeat.set(2,2);
+const asphaltTex=makeSurfaceTexture('asphalt',21);asphaltTex.repeat.set(8,5);
+
+MAT.wood.map=woodTex;MAT.wood.bumpMap=woodTex;MAT.wood.bumpScale=.018;MAT.wood.needsUpdate=true;
+MAT.walnut.map=woodTex;MAT.walnut.bumpMap=woodTex;MAT.walnut.bumpScale=.016;MAT.walnut.needsUpdate=true;
+MAT.darkWalnut.map=woodTex;MAT.darkWalnut.bumpMap=woodTex;MAT.darkWalnut.bumpScale=.014;MAT.darkWalnut.needsUpdate=true;
+MAT.wall.map=plasterTex;MAT.wall.bumpMap=plasterTex;MAT.wall.bumpScale=.010;MAT.wall.needsUpdate=true;
+MAT.fabric.map=fabricTex;MAT.fabric.bumpMap=fabricTex;MAT.fabric.bumpScale=.018;MAT.fabric.needsUpdate=true;
+MAT.rug.map=fabricTex;MAT.rug.bumpMap=fabricTex;MAT.rug.bumpScale=.025;MAT.rug.needsUpdate=true;
+MAT.asphalt.map=asphaltTex;MAT.asphalt.bumpMap=asphaltTex;MAT.asphalt.bumpScale=.025;MAT.asphalt.needsUpdate=true;
+
 function box(parent,w,h,d,mat,x,y,z,cast=true){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
   m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;parent.add(m);return m;
@@ -223,6 +287,23 @@ function box(parent,w,h,d,mat,x,y,z,cast=true){
 function cyl(parent,rt,rb,h,seg,mat,x,y,z){
   const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);
   m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+}
+function contactShadow(parent,x,z,w,d,opacity=.20){
+  const g=document.createElement('canvas');g.width=g.height=128;
+  const q=g.getContext('2d'),grad=q.createRadialGradient(64,64,8,64,64,62);
+  grad.addColorStop(0,'rgba(0,0,0,'+opacity+')');grad.addColorStop(1,'rgba(0,0,0,0)');
+  q.fillStyle=grad;q.fillRect(0,0,128,128);
+  const tex=new THREE.CanvasTexture(g);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,.108,z);parent.add(m);return m;
+}
+function cable(parent,pts,r=.010,color=0x101113){
+  const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p[0],p[1],p[2])));
+  const mesh=new THREE.Mesh(
+    new THREE.TubeGeometry(curve,18,r,5,false),
+    new THREE.MeshStandardMaterial({color,roughness:.72,metalness:.05})
+  );
+  mesh.castShadow=true;parent.add(mesh);return mesh;
 }
 
 /* ---------- NIGHT CITY MATERIALS ---------- */
@@ -464,17 +545,28 @@ function buildRoom(parent,{w=8,d=6,h=3.2,windowBack=true}={}){
     box(parent,1.45,h,.12,MAT.wall,w/2-.72,h/2,-d/2);
     box(parent,w-2.8,.58,.12,MAT.wall,0,.29,-d/2);
     box(parent,w-2.8,.58,.12,MAT.wall,0,h-.29,-d/2);
-    const glass=new THREE.MeshPhysicalMaterial({color:0x5f8197,roughness:.08,metalness:.15,transparent:true,opacity:.19,transmission:.36,side:THREE.DoubleSide});
+    const glass=new THREE.MeshPhysicalMaterial({
+      color:0x496274,roughness:.045,metalness:.18,transparent:true,opacity:.22,
+      transmission:.42,clearcoat:.85,clearcoatRoughness:.08,side:THREE.DoubleSide
+    });
     box(parent,w-2.9,h-1.25,.025,glass,0,h/2,-d/2+.03,false);
+    // window mullions + sill
+    box(parent,.045,h-1.28,.05,MAT.metal,0,h/2,-d/2+.07,false);
+    box(parent,w-2.88,.045,.08,MAT.metal,0,.61,-d/2+.07,false);
+    box(parent,w-2.88,.045,.08,MAT.metal,0,h-.61,-d/2+.07,false);
   }
   // front architectural frame
   box(parent,1.0,h,.12,MAT.wall,-w/2+.5,h/2,d/2);
   box(parent,1.0,h,.12,MAT.wall,w/2-.5,h/2,d/2);
+  // baseboards break the toy-box wall/floor seam
+  box(parent,.055,.13,d-.18,MAT.darkWalnut,-w/2+.095,.12,0,false);
+  box(parent,.055,.13,d-.18,MAT.darkWalnut,w/2-.095,.12,0,false);
+  box(parent,w-.20,.13,.055,MAT.darkWalnut,0,.12,-d/2+.095,false);
   // rug
   box(parent,w*.45,.025,d*.32,MAT.rug,0,.075,.45,false);
   // ceiling downlights
   for(const x of [-2.4,0,2.4])for(const z of [-1.6,1.2]){
-    const p=new THREE.PointLight(0xffb063,3.2,3.8,2);p.position.set(x,h-.18,z);parent.add(p);
+    const p=new THREE.PointLight(0xffb063,1.65,3.1,2);p.position.set(x,h-.18,z);parent.add(p);
     const s=new THREE.Mesh(new THREE.SphereGeometry(.035,8,8),new THREE.MeshBasicMaterial({color:0xffc278}));
     s.position.copy(p.position);parent.add(s);
   }
@@ -507,10 +599,21 @@ function luxuryDesk(parent,x,z,w=3.2){
   box(parent,.072,.76,.72,MAT.metal,x+w*.44,.40,z);
 }
 function luxuryChair(parent,x,z){
+  // seat cushion with a slightly smaller inset layer
   box(parent,.70,.12,.66,MAT.leather,x,.50,z);
+  box(parent,.62,.035,.57,new THREE.MeshStandardMaterial({color:0x1d1d1d,roughness:.96}),x,.575,z-.015,false);
+  // back and lumbar pad
   box(parent,.68,.82,.11,MAT.leather,x,.97,z+.28);
-  box(parent,.08,.46,.08,MAT.metal,x,.25,z);
-  box(parent,.45,.045,.45,MAT.metal,x,.055,z);
+  box(parent,.52,.25,.035,new THREE.MeshStandardMaterial({color:0x222222,roughness:.95}),x,.95,z+.215,false);
+  // central column + five-star base
+  cyl(parent,.045,.055,.43,14,MAT.metal,x,.255,z);
+  for(let i=0;i<5;i++){
+    const a=i/5*Math.PI*2;
+    const arm=box(parent,.36,.035,.05,MAT.metal,x+Math.cos(a)*.16,.075,z+Math.sin(a)*.16,false);
+    arm.rotation.y=-a;
+    const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.035,12),MAT.dark);
+    wheel.rotation.z=Math.PI/2;wheel.position.set(x+Math.cos(a)*.34,.055,z+Math.sin(a)*.34);parent.add(wheel);
+  }
 }
 function wallSconce(parent,x,y,z,side=1){
   const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);
@@ -585,13 +688,24 @@ const lampGlow=new THREE.PointLight(0xffa24f,14,3.2,2);lampGlow.position.set(0,.
 
 // procedural speakers + mic fallback
 function speaker(parent,x,y,z){
-  box(parent,.34,.52,.29,new THREE.MeshStandardMaterial({color:0x111214,roughness:.38,metalness:.30}),x,y,z);
-  const woofer=new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.012,24),new THREE.MeshStandardMaterial({color:0x050506,roughness:.55}));
-  woofer.rotation.x=Math.PI/2;woofer.position.set(x,y-.09,z+.151);parent.add(woofer);
-  const tweeter=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.012,20),new THREE.MeshStandardMaterial({color:0x07080a,roughness:.40}));
-  tweeter.rotation.x=Math.PI/2;tweeter.position.set(x,y+.13,z+.151);parent.add(tweeter);
-}
-speaker(work,-1.05,1.06,-.78);speaker(work,1.05,1.06,-.78);
+  const cabinet=new THREE.Group();cabinet.position.set(x,y,z);parent.add(cabinet);
+  box(cabinet,.36,.54,.31,new THREE.MeshStandardMaterial({color:0x17181a,roughness:.36,metalness:.20}),0,0,0);
+  box(cabinet,.325,.505,.016,new THREE.MeshStandardMaterial({color:0x090a0b,roughness:.62}),0,0,.164,false);
+
+  function driver(py,r,ringColor){
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(r,.014,10,30),new THREE.MeshStandardMaterial({color:ringColor,roughness:.48,metalness:.18}));
+    ring.rotation.x=Math.PI/2;ring.position.set(0,py,.177);cabinet.add(ring);
+    const cone=new THREE.Mesh(new THREE.CylinderGeometry(r*.56,r*.88,.020,32),new THREE.MeshStandardMaterial({color:0x0b0c0d,roughness:.48,metalness:.08}));
+    cone.rotation.x=Math.PI/2;cone.position.set(0,py,.172);cabinet.add(cone);
+    const dust=new THREE.Mesh(new THREE.SphereGeometry(r*.30,18,10),new THREE.MeshStandardMaterial({color:0x17191b,roughness:.38,metalness:.22}));
+    dust.scale.z=.35;dust.position.set(0,py,.195);cabinet.add(dust);
+  }
+  driver(-.095,.105,0x27292c);
+  driver(.145,.047,0x3d4146);
+  // tiny status LED
+  const led=new THREE.Mesh(new THREE.SphereGeometry(.008,8,6),new THREE.MeshBasicMaterial({color:0x84d7a0}));
+  led.position.set(.12,.215,.178);cabinet.add(led);
+}speaker(work,-1.05,1.06,-.78);speaker(work,1.05,1.06,-.78);
 const micStand=cyl(work,.015,.025,.92,12,MAT.metal,1.72,.46,-.10);
 const mic=new THREE.Mesh(new THREE.CylinderGeometry(.065,.065,.28,16),new THREE.MeshStandardMaterial({color:0x1a1b1e,roughness:.32,metalness:.55}));
 mic.position.set(1.72,1.02,-.10);work.add(mic);
@@ -621,7 +735,11 @@ laptopHit.userData.action='release';
 
 // Production room — darker, warmer, more luxurious
 luxuryDesk(production,.15,-.72,3.55);luxuryChair(production,.15,.80);
+contactShadow(production,.15,-.62,3.7,1.35,.18);
+box(production,2.45,.07,.18,MAT.dark,.15,.62,-.94,false); // cable tray
 speaker(production,-1.32,1.08,-.83);speaker(production,1.74,1.08,-.83);
+contactShadow(production,-1.32,-.83,.58,.48,.13);
+contactShadow(production,1.74,-.83,.58,.48,.13);
 
 // floating walnut feature wall for the records
 box(production,3.20,1.48,.075,MAT.darkWalnut,.12,1.66,-2.89);
@@ -632,12 +750,12 @@ const studioRing=new THREE.Mesh(new THREE.TorusGeometry(.62,.018,10,64),new THRE
   color:0xc79852,roughness:.24,metalness:.72,emissive:0x5d3516,emissiveIntensity:.35
 }));
 studioRing.rotation.x=Math.PI/2;studioRing.position.set(.15,2.92,-.20);production.add(studioRing);
-const ringGlow=new THREE.PointLight(0xffb56a,8.0,5.0,2);ringGlow.position.set(.15,2.70,-.20);production.add(ringGlow);
+const ringGlow=new THREE.PointLight(0xffb56a,4.2,4.4,2);ringGlow.position.set(.15,2.70,-.20);production.add(ringGlow);
 
 // slim credenza and sculpture light
 box(production,1.60,.66,.44,MAT.darkWalnut,3.10,.36,1.92);
 box(production,1.48,.022,.42,MAT.brass,3.10,.705,1.92,false);
-const credenzaGlow=new THREE.PointLight(0xffa85f,5.8,3.5,2);credenzaGlow.position.set(3.10,1.15,1.92);production.add(credenzaGlow);
+const credenzaGlow=new THREE.PointLight(0xffa85f,3.2,3.1,2);credenzaGlow.position.set(3.10,1.15,1.92);production.add(credenzaGlow);
 
 // sconces
 wallSconce(production,-4.28,1.95,-1.10,1);
@@ -653,9 +771,10 @@ box(production,1.85,2.16,.32,MAT.darkWalnut,-3.20,1.10,-2.66);
 for(let r=0;r<4;r++)box(production,1.72,.045,.34,MAT.walnut,-3.20,.35+r*.48,-2.62);
 for(let r=0;r<4;r++)for(let i=0;i<8;i++){
   const colors=[0x63342c,0x34445f,0x645335,0x285145,0x4f3e31];
-  box(production,.115,.27+.04*((i+r)%3),.22,new THREE.MeshStandardMaterial({color:colors[(i+r)%colors.length],roughness:.78}),-3.92+i*.20,.52+r*.48,-2.45);
+  const book=box(production,.105+.012*((i+r)%3),.27+.04*((i+r)%3),.22,new THREE.MeshStandardMaterial({color:colors[(i+r)%colors.length],roughness:.78}),-3.92+i*.20+.012*((i%2)?1:-1),.52+r*.48,-2.45);
+  book.rotation.z=((i+r)%3-1)*.018;
 }
-const bookcaseGlow=new THREE.PointLight(0xffa45a,6.5,3.5,2);bookcaseGlow.position.set(-3.18,2.28,-2.12);production.add(bookcaseGlow);
+const bookcaseGlow=new THREE.PointLight(0xffa45a,3.4,3.2,2);bookcaseGlow.position.set(-3.18,2.28,-2.12);production.add(bookcaseGlow);
 
 // MPCs
 function mpc(parent,x,z,modern=false){
@@ -671,9 +790,35 @@ function mpc(parent,x,z,modern=false){
 }
 mpc(production,-.62,-.75,false);mpc(production,.38,-.75,true);
 
-// MIDI keys — shortened and moved left so the right monitor has breathing room
+// MIDI keys — white/black key pattern + wood side cheeks
 box(production,1.12,.075,.30,MAT.dark,.82,.89,-.68);
-for(let i=0;i<16;i++)box(production,.052,.021,.17,new THREE.MeshStandardMaterial({color:0xe4dfd5,roughness:.58}),.43+i*.050,.94,-.64,false);
+const whiteKeyMat=new THREE.MeshStandardMaterial({color:0xe7e3da,roughness:.48});
+const blackKeyMat=new THREE.MeshStandardMaterial({color:0x111214,roughness:.34});
+for(let i=0;i<16;i++)box(production,.052,.021,.17,whiteKeyMat,.43+i*.050,.94,-.64,false);
+for(const i of [0,1,3,4,5,7,8,10,11,12,14]){
+  box(production,.031,.030,.105,blackKeyMat,.455+i*.050,.958,-.685,false);
+}
+box(production,.045,.085,.31,MAT.walnut,.245,.895,-.68);
+box(production,.045,.085,.31,MAT.walnut,1.395,.895,-.68);
+
+// believable cable runs: tiny geometry, huge realism payoff
+cable(production,[[-.62,.90,-.96],[-.64,.72,-1.02],[-.35,.61,-1.02],[.10,.61,-.95]],.009,0x111111);
+cable(production,[[.38,.90,-.96],[.40,.70,-1.02],[.20,.61,-1.02],[.02,.61,-.94]],.009,0x151515);
+cable(production,[[.82,.90,-.86],[.84,.74,-.98],[.60,.61,-1.00],[.34,.61,-.95]],.008,0x0c0d0e);
+
+// notebook + pencil + ceramic mug
+box(production,.31,.022,.23,new THREE.MeshStandardMaterial({color:0x2a1d17,roughness:.90}),-1.18,.935,-.48,false);
+const pencil=box(production,.25,.010,.012,new THREE.MeshStandardMaterial({color:0xb77a2d,roughness:.62}),-1.10,.955,-.38,false);pencil.rotation.y=.16;
+const mug=new THREE.Mesh(new THREE.CylinderGeometry(.055,.050,.10,18),new THREE.MeshStandardMaterial({color:0xd9d2c5,roughness:.68}));
+mug.position.set(-1.42,.975,-.50);mug.castShadow=true;production.add(mug);
+const handle=new THREE.Mesh(new THREE.TorusGeometry(.043,.010,8,18,Math.PI*1.55),new THREE.MeshStandardMaterial({color:0xd9d2c5,roughness:.68}));
+handle.rotation.y=Math.PI/2;handle.position.set(-1.485,.98,-.50);production.add(handle);
+
+// headphones resting near the right edge
+const headband=new THREE.Mesh(new THREE.TorusGeometry(.12,.016,8,28,Math.PI),new THREE.MeshStandardMaterial({color:0x121315,roughness:.68,metalness:.10}));
+headband.rotation.z=Math.PI;headband.position.set(1.32,.965,-.48);production.add(headband);
+box(production,.055,.07,.035,MAT.dark,1.20,.955,-.47,false);
+box(production,.055,.07,.035,MAT.dark,1.44,.955,-.47,false);
 
 // vinyl display shelf
 box(production,2.82,.070,.30,MAT.walnut,.12,1.57,-2.57);
@@ -702,7 +847,13 @@ vinylCovers.forEach((url,i)=>{
 });
 
 // production warm shelf light
-const shelfLight=new THREE.PointLight(0xffa857,12,4.8,2);shelfLight.position.set(.12,2.28,-2.15);production.add(shelfLight);
+const shelfLight=new THREE.PointLight(0xffa857,5.8,4.2,2);shelfLight.position.set(.12,2.28,-2.15);production.add(shelfLight);
+
+const studioKey=new THREE.SpotLight(0xffc184,8.0,7.5,Math.PI*.24,.62,1.35);
+studioKey.position.set(-1.6,2.85,1.55);
+studioKey.target.position.set(.10,.78,-.65);
+studioKey.castShadow=true;studioKey.shadow.mapSize.set(512,512);
+production.add(studioKey,studioKey.target);
 
 /* ---------- HDR ENVIRONMENT ---------- */
 new THREE.RGBELoader().load(
@@ -720,7 +871,7 @@ const viewConfig={
   city:{pos:new THREE.Vector3(24,7.2,19),target:new THREE.Vector3(-1.5,4.3,-1.2),min:10,max:34},
   terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
   work:{pos:new THREE.Vector3(4.1,2.05,4.65),target:new THREE.Vector3(0,1.05,-.65),min:2.3,max:7.5},
-  production:{pos:new THREE.Vector3(4.6,2.18,5.05),target:new THREE.Vector3(.05,1.10,-.75),min:2.5,max:8.0}
+  production:{pos:new THREE.Vector3(4.55,2.08,5.15),target:new THREE.Vector3(.04,1.04,-.72),min:2.7,max:8.0}
 };
 function setCamera(name){
   const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
@@ -816,7 +967,7 @@ function animate(){
 animate();
 
 addEventListener('resize',()=>{
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));
+  renderer.setPixelRatio(Math.min(devicePixelRatio,pixelCap));
   renderer.setSize(innerWidth,innerHeight,false);
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
 });
