@@ -12,14 +12,13 @@
 *{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#050505;color:var(--fg);font-family:Arial,Helvetica,sans-serif}button,a{font:inherit;color:inherit}
 #app{position:relative;height:100dvh;min-height:560px}
 #cesium,#roomCanvas{position:absolute;inset:0;width:100%;height:100%}
-#cesium{z-index:1;filter:brightness(.47) contrast(1.16) saturate(.84) sepia(.08)}
+#cesium{z-index:1;filter:contrast(1.04) saturate(.92)}
 #roomCanvas{z-index:2;display:none;touch-action:none}
 .cesium-viewer-bottom,.cesium-viewer-toolbar,.cesium-viewer-animationContainer,.cesium-viewer-timelineContainer,.cesium-viewer-fullscreenContainer{display:none!important}
 .cesium-widget-credits{font-size:9px!important;opacity:.5}
 #grade{position:absolute;z-index:4;inset:0;pointer-events:none;background:
-radial-gradient(circle at 55% 39%,rgba(255,173,76,.15),transparent 18%),
-radial-gradient(circle at 45% 67%,rgba(255,104,36,.08),transparent 24%),
-linear-gradient(180deg,rgba(0,6,20,.18),transparent 40%,rgba(0,0,0,.28))}
+radial-gradient(circle at 56% 44%,rgba(255,154,62,.055),transparent 16%),
+linear-gradient(180deg,rgba(0,4,12,.10),transparent 38%,rgba(0,0,0,.18))}
 #veil{position:absolute;z-index:45;inset:0;background:#050505;opacity:0;pointer-events:none;transition:opacity .3s ease}#veil.on{opacity:1}
 .marker{position:absolute;z-index:20;width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.78);background:rgba(0,0,0,.28);backdrop-filter:blur(6px);display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 28px rgba(0,0,0,.35);transition:transform .18s ease,opacity .22s ease}
 .marker::before{content:"→";font-size:24px}.marker.gold{border-color:#d8b36e;color:#f0d39a}.marker:hover{transform:scale(1.06)}
@@ -88,11 +87,15 @@ viewer.scene.fog.enabled=true;
 viewer.scene.highDynamicRange=true;
 viewer.scene.postProcessStages.fxaa.enabled=true;
 viewer.scene.backgroundColor=Cesium.Color.BLACK;
+viewer.camera.frustum.fov=Cesium.Math.toRadians(38);
+viewer.scene.screenSpaceCameraController.minimumZoomDistance=18;
+viewer.scene.screenSpaceCameraController.maximumZoomDistance=2800;
 
 const views={
-  downtown:{lon:55.2744,lat:25.1972,h:1250,heading:28,pitch:-36},
-  drive:{lon:55.2708,lat:25.1936,h:190,heading:52,pitch:-22},
-  fountain:{lon:55.2752,lat:25.1955,h:165,heading:6,pitch:-28}
+  // Cinematic drone positions, not "whole-city satellite map" positions.
+  downtown:{lon:55.2697,lat:25.1927,h:620,heading:39,pitch:-19},
+  drive:{lon:55.2706,lat:25.1936,h:88,heading:51,pitch:-8},
+  fountain:{lon:55.2735,lat:25.1941,h:125,heading:32,pitch:-15}
 };
 
 function setView(v){
@@ -125,8 +128,46 @@ setView(views.downtown);
 let tileset;
 try{
   tileset=await Cesium.createGooglePhotorealistic3DTileset();
-  tileset.maximumScreenSpaceError=8;
+  tileset.maximumScreenSpaceError=5.5;
   viewer.scene.primitives.add(tileset);
+
+  // Turn the daylight photogrammetry into a moody night treatment.
+  // This preserves the real textured geometry, while crushing daytime sand tones
+  // and letting bright texture details read as practical/window light.
+  const nightPass=new Cesium.PostProcessStage({
+    name:"dubai-night-grade",
+    fragmentShader:`
+      uniform sampler2D colorTexture;
+      in vec2 v_textureCoordinates;
+      void main(){
+        vec3 c=texture(colorTexture,v_textureCoordinates).rgb;
+        float l=dot(c,vec3(0.2126,0.7152,0.0722));
+
+        // cool, dark base
+        vec3 n=c*vec3(0.17,0.20,0.28);
+        n=mix(n,vec3(l*0.095,l*0.11,l*0.16),0.46);
+
+        // retain only the brightest photographic details as warm city light
+        float lamp=smoothstep(0.72,0.98,l);
+        n+=vec3(1.0,0.50,0.18)*lamp*0.68;
+
+        // tiny blue lift in shadows so geometry remains readable
+        n+=vec3(0.010,0.016,0.030);
+        n=pow(max(n,vec3(0.0)),vec3(0.88));
+        out_FragColor=vec4(n,1.0);
+      }`
+  });
+  viewer.scene.postProcessStages.add(nightPass);
+
+  const bloom=viewer.scene.postProcessStages.bloom;
+  bloom.enabled=true;
+  bloom.uniforms.glowOnly=false;
+  bloom.uniforms.contrast=150.0;
+  bloom.uniforms.brightness=-0.20;
+  bloom.uniforms.delta=1.0;
+  bloom.uniforms.sigma=3.0;
+  bloom.uniforms.stepSize=1.6;
+
   await tileset.readyPromise?.catch?.(()=>{});
   setView(views.downtown);
 }catch(e){
