@@ -87,53 +87,41 @@ viewer.scene.fog.enabled=true;
 viewer.scene.highDynamicRange=true;
 viewer.scene.postProcessStages.fxaa.enabled=true;
 viewer.scene.backgroundColor=Cesium.Color.BLACK;
-viewer.camera.frustum.fov=Cesium.Math.toRadians(50);
+viewer.camera.frustum.fov=Cesium.Math.toRadians(46);
 viewer.scene.screenSpaceCameraController.minimumZoomDistance=18;
 viewer.scene.screenSpaceCameraController.maximumZoomDistance=2800;
 
 const views={
-  downtown:{
-    target:[55.274376,25.197197,300],
-    heading:Cesium.Math.toRadians(225),
-    pitch:Cesium.Math.toRadians(-12),
-    range:1200
-  },
-  drive:{
-    target:[55.27255,25.19465,26],
-    heading:Cesium.Math.toRadians(225),
-    pitch:Cesium.Math.toRadians(-10),
-    range:260
-  },
-  fountain:{
-    target:[55.27515,25.19555,24],
-    heading:Cesium.Math.toRadians(235),
-    pitch:Cesium.Math.toRadians(-16),
-    range:360
-  }
+  // Stable explicit camera positions. These avoid the broken local-tangent lookAt framing.
+  downtown:{lon:55.26345,lat:25.18855,h:700,heading:49,pitch:-18},
+  drive:{lon:55.27015,lat:25.19295,h:125,heading:46,pitch:-10},
+  fountain:{lon:55.27255,lat:25.19395,h:185,heading:34,pitch:-20}
 };
 
 viewer.scene.screenSpaceCameraController.enableCollisionDetection=false;
 
-function setView(view){
-  const target=Cesium.Cartesian3.fromDegrees(...view.target);
-  viewer.camera.lookAt(
-    target,
-    new Cesium.HeadingPitchRange(view.heading,view.pitch,view.range)
-  );
-  // unlock the camera from the local target transform while preserving the view
-  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+function setView(v){
+  viewer.camera.setView({
+    destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
+    orientation:{
+      heading:Cesium.Math.toRadians(v.heading),
+      pitch:Cesium.Math.toRadians(v.pitch),
+      roll:0
+    }
+  });
 }
 
-function fly(view,d=2.1){
-  const target=Cesium.Cartesian3.fromDegrees(...view.target);
-  viewer.camera.flyToBoundingSphere(
-    new Cesium.BoundingSphere(target,1),
-    {
-      offset:new Cesium.HeadingPitchRange(view.heading,view.pitch,view.range),
-      duration:d,
-      easingFunction:Cesium.EasingFunction.CUBIC_IN_OUT
-    }
-  );
+function fly(v,d=2.1){
+  viewer.camera.flyTo({
+    destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
+    orientation:{
+      heading:Cesium.Math.toRadians(v.heading),
+      pitch:Cesium.Math.toRadians(v.pitch),
+      roll:0
+    },
+    duration:d,
+    easingFunction:Cesium.EasingFunction.CUBIC_IN_OUT
+  });
 }
 
 /* Put the camera over Downtown BEFORE requesting the tiles.
@@ -143,11 +131,10 @@ setView(views.downtown);
 let tileset;
 try{
   tileset=await Cesium.createGooglePhotorealistic3DTileset();
-  tileset.maximumScreenSpaceError=1.7;
+  tileset.maximumScreenSpaceError=2.6;
   tileset.dynamicScreenSpaceError=false;
-  tileset.cullRequestsWhileMoving=false;
-  tileset.preloadWhenHidden=true;
-  tileset.preloadFlightDestinations=true;
+  tileset.cullRequestsWhileMoving=true;
+  tileset.preloadWhenHidden=false;
   viewer.scene.primitives.add(tileset);
 
   // Turn the daylight photogrammetry into a moody night treatment.
