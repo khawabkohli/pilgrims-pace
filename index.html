@@ -4,257 +4,406 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Pilgrim's Pace</title>
-<meta name="description" content="Pilgrim's Pace">
-<meta property="og:title" content="Pilgrim's Pace">
-<meta property="og:image" content="https://images.pexels.com/photos/13398540/pexels-photo-13398540.jpeg?auto=compress&cs=tinysrgb&w=1600">
-<meta name="theme-color" content="#070707">
+<meta name="theme-color" content="#080705">
 <style>
 :root{
-  --fg:#fff;
-  --muted:rgba(255,255,255,.74);
-  --line:rgba(255,255,255,.34);
-  --glass:rgba(5,5,5,.44);
-  --glass2:rgba(5,5,5,.78);
-  --safe-t:max(18px,env(safe-area-inset-top));
-  --safe-r:max(18px,env(safe-area-inset-right));
-  --safe-b:max(18px,env(safe-area-inset-bottom));
-  --safe-l:max(18px,env(safe-area-inset-left));
+  --fg:#f5efe3;
+  --muted:rgba(245,239,227,.66);
+  --line:rgba(255,255,255,.18);
+  --glass:rgba(8,7,5,.70);
+  --gold:#d5ad61;
+  --safe-t:max(16px,env(safe-area-inset-top));
+  --safe-r:max(16px,env(safe-area-inset-right));
+  --safe-b:max(16px,env(safe-area-inset-bottom));
+  --safe-l:max(16px,env(safe-area-inset-left));
 }
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;background:#050505;color:var(--fg);font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow:hidden}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080705;color:var(--fg);font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button,a{font:inherit;color:inherit}
-#app{position:relative;width:100%;height:100dvh;min-height:560px;overflow:hidden;background:#050505}
-
-/* Real photographic rooms */
-.room{
-  position:absolute;inset:0;
-  opacity:0;visibility:hidden;pointer-events:none;
-  transition:opacity .72s ease,visibility .72s ease;
-  background:#050505 center/cover no-repeat;
+#app{position:relative;width:100%;height:100dvh;min-height:560px;overflow:hidden;background:#080705}
+#canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#fade{position:absolute;inset:0;z-index:50;background:#080705;opacity:0;pointer-events:none;transition:opacity .36s ease}
+#fade.on{opacity:1}
+#loader{position:absolute;inset:0;z-index:60;display:grid;place-items:center;background:#080705;transition:opacity .45s ease}
+#loader.hide{opacity:0;pointer-events:none}
+.loadbar{width:min(220px,55vw);height:1px;background:rgba(255,255,255,.15);overflow:hidden}
+.loadbar i{display:block;width:0;height:100%;background:var(--gold);transition:width .35s ease}
+#back{
+  display:none;position:absolute;z-index:30;left:var(--safe-l);bottom:var(--safe-b);
+  width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.35);
+  background:rgba(7,6,5,.28);backdrop-filter:blur(10px);color:#fff;cursor:pointer;
+  font-size:24px;line-height:1;place-items:center
 }
-.room::after{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  background:
-    linear-gradient(180deg,rgba(0,0,0,.18),transparent 24%,transparent 68%,rgba(0,0,0,.28)),
-    radial-gradient(circle at center,transparent 48%,rgba(0,0,0,.16) 100%);
+body:not([data-room="downtown"]) #back{display:grid}
+#release{
+  display:none;position:absolute;z-index:35;right:clamp(14px,3vw,46px);top:50%;transform:translateY(-50%);
+  width:min(360px,calc(100vw - 28px));padding:13px;border-radius:20px;border:1px solid var(--line);
+  background:var(--glass);backdrop-filter:blur(22px);box-shadow:0 24px 70px rgba(0,0,0,.44)
 }
-.room.active{opacity:1;visibility:visible;pointer-events:auto}
-#front{background-image:url("https://images.pexels.com/photos/13398540/pexels-photo-13398540.jpeg?auto=compress&cs=tinysrgb&w=2400")}
-#drive{background-image:url("https://images.pexels.com/photos/14749802/pexels-photo-14749802.jpeg?auto=compress&cs=tinysrgb&w=2400")}
-#fountain{background-image:url("https://images.pexels.com/photos/30400180/pexels-photo-30400180.jpeg?auto=compress&cs=tinysrgb&w=2200")}
-#studio{background-image:url("https://images.pexels.com/photos/7586656/pexels-photo-7586656.jpeg?auto=compress&cs=tinysrgb&w=2200")}
-#home{background-image:url("https://images.pexels.com/photos/32418264/pexels-photo-32418264.jpeg?auto=compress&cs=tinysrgb&w=2200")}
-
-/* Arrows */
-.arrow{
-  position:absolute;z-index:12;
-  width:52px;height:52px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.76);
-  background:rgba(0,0,0,.15);
-  backdrop-filter:blur(4px);
-  display:grid;place-items:center;
-  cursor:pointer;
-  transition:transform .18s ease,background .18s ease,border-color .18s ease;
-  box-shadow:0 8px 24px rgba(0,0,0,.18);
-}
-.arrow::before{
-  content:"→";
-  font-size:26px;line-height:1;font-weight:300;
-  transform:translateY(-1px);
-}
-.arrow:hover{transform:scale(1.06);background:rgba(0,0,0,.35)}
-.arrow:focus-visible{outline:2px solid #fff;outline-offset:4px}
-.arrow[data-label]::after{
-  content:attr(data-label);
-  position:absolute;top:50%;left:64px;transform:translateY(-50%);
-  padding:7px 9px;border-radius:999px;
-  background:rgba(0,0,0,.52);backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.16);
-  color:#fff;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
-  opacity:0;pointer-events:none;white-space:nowrap;transition:opacity .16s ease;
-}
-.arrow:hover::after{opacity:1}
-
-/* Main Downtown scene hotspots */
-#front .to-drive{left:13%;bottom:18%}
-#front .to-fountain{left:53%;top:57%}
-#front .to-studio{right:17%;top:27%}
-#front .to-home{right:8%;bottom:17%}
-
-/* Back / next inside rooms */
-.room-nav{
-  position:absolute;z-index:15;inset:0;pointer-events:none;
-}
-.room-nav .arrow{pointer-events:auto}
-.back{left:var(--safe-l);bottom:var(--safe-b)}
-.back::before{content:"←"}
-.next{right:var(--safe-r);bottom:var(--safe-b)}
-
-.room-name{
-  position:absolute;z-index:14;right:var(--safe-r);top:var(--safe-t);
-  padding:9px 11px;border:1px solid rgba(255,255,255,.18);
-  background:rgba(0,0,0,.26);backdrop-filter:blur(8px);border-radius:999px;
-  color:rgba(255,255,255,.86);font-size:9px;letter-spacing:.18em;text-transform:uppercase;
-}
-
-/* Studio drawer */
-.release{
-  position:absolute;z-index:20;right:clamp(16px,4vw,62px);top:50%;transform:translateY(-50%);
-  width:min(360px,calc(100vw - 32px));
-  padding:13px;border-radius:20px;border:1px solid rgba(255,255,255,.16);
-  background:var(--glass2);backdrop-filter:blur(22px);
-  box-shadow:0 24px 70px rgba(0,0,0,.45);
-}
-.release img{
-  width:100%;aspect-ratio:1;object-fit:cover;display:block;
-  border-radius:13px;margin-bottom:12px;box-shadow:0 16px 40px rgba(0,0,0,.36);
-}
+body[data-room="studio"] #release{display:block}
+#release img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px;margin-bottom:12px;box-shadow:0 16px 38px rgba(0,0,0,.38)}
 .services{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .service{
   min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:0 12px;border:1px solid rgba(255,255,255,.13);
-  border-radius:12px;text-decoration:none;background:rgba(255,255,255,.025);
-  font-size:12px;
+  padding:0 12px;border:1px solid rgba(255,255,255,.13);border-radius:12px;
+  text-decoration:none;background:rgba(255,255,255,.025);font-size:12px
 }
-.service span:last-child{font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+.service span:last-child{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .service:hover{background:rgba(255,255,255,.07)}
-
-/* Tiny navigator, mostly for mobile */
-.dock{
-  position:absolute;z-index:30;left:50%;bottom:var(--safe-b);transform:translateX(-50%);
-  display:flex;gap:6px;padding:7px;border:1px solid rgba(255,255,255,.14);
-  background:rgba(0,0,0,.34);backdrop-filter:blur(14px);
-  border-radius:999px;
+#hint{
+  position:absolute;z-index:22;left:50%;bottom:var(--safe-b);transform:translateX(-50%);
+  padding:9px 12px;border:1px solid rgba(255,255,255,.13);border-radius:999px;
+  background:rgba(7,6,5,.32);backdrop-filter:blur(10px);color:rgba(255,255,255,.62);
+  font-size:8px;letter-spacing:.16em;text-transform:uppercase;pointer-events:none;transition:opacity .3s ease
 }
-.dock button{
-  border:0;background:transparent;color:rgba(255,255,255,.65);
-  padding:8px 10px;border-radius:999px;
-  font-size:8px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+body:not([data-room="downtown"]) #hint{opacity:0}
+#error{
+  display:none;position:absolute;z-index:70;inset:0;place-items:center;padding:24px;text-align:center;
+  background:#080705;color:var(--muted);font-size:12px;line-height:1.6
 }
-.dock button.active{background:rgba(255,255,255,.10);color:#fff}
-
-/* front should feel clean */
-body[data-room="front"] .dock{opacity:.72}
-body[data-room="studio"] .dock{display:none}
-
-@media(max-width:820px){
-  .release{
-    left:14px;right:14px;top:auto;bottom:82px;transform:none;width:auto;
-    max-height:74vh;overflow:auto
-  }
+@media(max-width:780px){
+  #release{left:12px;right:12px;top:auto;bottom:78px;transform:none;width:auto;max-height:74vh;overflow:auto}
   .services{grid-template-columns:1fr}
-  .dock{max-width:calc(100vw - 28px);overflow:auto;justify-content:flex-start}
-  .dock::-webkit-scrollbar{display:none}
-  .dock button{white-space:nowrap}
-  .room-name{top:var(--safe-t);right:var(--safe-r)}
-}
-@media(max-width:600px){
-  .arrow{width:46px;height:46px}
-  .arrow::before{font-size:23px}
-  .arrow[data-label]::after{display:none}
-  #front .to-drive{left:8%;bottom:19%}
-  #front .to-fountain{left:50%;top:58%}
-  #front .to-studio{right:12%;top:25%}
-  #front .to-home{right:7%;bottom:18%}
+  #hint{bottom:calc(var(--safe-b) + 4px);white-space:nowrap}
 }
 @media(prefers-reduced-motion:reduce){
-  .room{transition:none}
-  .arrow{transition:none}
+  #fade,#loader,.loadbar i{transition:none}
 }
 </style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/"
+  }
+}
+</script>
 </head>
-<body data-room="front">
+<body data-room="downtown">
 <div id="app">
+  <canvas id="canvas"></canvas>
+  <div id="fade"></div>
 
-  <section id="front" class="room active" aria-label="Downtown Dubai">
-    <button class="arrow to-drive" data-go="drive" data-label="Drive" aria-label="Open Drive"></button>
-    <button class="arrow to-fountain" data-go="fountain" data-label="Fountain" aria-label="Open Fountain"></button>
-    <button class="arrow to-studio" data-go="studio" data-label="Studio" aria-label="Open Studio"></button>
-    <button class="arrow to-home" data-go="home" data-label="Home" aria-label="Open Home"></button>
-  </section>
+  <div id="loader"><div class="loadbar"><i id="loadProgress"></i></div></div>
+  <div id="error">3D scene couldn't load. Refresh once and make sure WebGL is enabled.</div>
 
-  <section id="drive" class="room" aria-label="Dubai night drive">
-    <div class="room-name">Drive</div>
-    <div class="room-nav">
-      <button class="arrow back" data-go="front" aria-label="Back to Downtown"></button>
-      <button class="arrow next" data-go="fountain" aria-label="Next room"></button>
+  <button id="back" aria-label="Back to Downtown">←</button>
+  <div id="hint">Drag to look around · tap the gold markers</div>
+
+  <section id="release" aria-label="Listen">
+    <img src="https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg" alt="Pilgrim's Pace cover artwork">
+    <div class="services">
+      <a class="service" href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz?si=8Lk2luENT92Kbbb_65MvcQ&utm_source=copy-link" target="_blank" rel="noopener noreferrer"><span>Spotify</span><span>Listen</span></a>
+      <a class="service" href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank" rel="noopener noreferrer"><span>Apple Music</span><span>Listen</span></a>
+      <a class="service" href="https://music.youtube.com/watch?v=ROwIV9T7IIc&si=0AdnKWGgAymDhcqf" target="_blank" rel="noopener noreferrer"><span>YouTube Music</span><span>Listen</span></a>
+      <a class="service" href="https://music.amazon.com.au/albums/B0HKZ3QZ2M?marketplaceId=A39IBJ37TRP1C6&musicTerritory=AU&ref=dm_sh_pVFmZyiynyFVsL5KDXfGFj46I" target="_blank" rel="noopener noreferrer"><span>Amazon Music</span><span>Listen</span></a>
+      <a class="service" href="https://tidal.com/album/564211468/u" target="_blank" rel="noopener noreferrer"><span>TIDAL</span><span>Listen</span></a>
     </div>
   </section>
-
-  <section id="fountain" class="room" aria-label="Dubai Fountain">
-    <div class="room-name">Fountain</div>
-    <div class="room-nav">
-      <button class="arrow back" data-go="front" aria-label="Back to Downtown"></button>
-      <button class="arrow next" data-go="studio" aria-label="Next room"></button>
-    </div>
-  </section>
-
-  <section id="studio" class="room" aria-label="Studio">
-    <div class="room-name">Studio</div>
-    <div class="room-nav">
-      <button class="arrow back" data-go="front" aria-label="Back to Downtown"></button>
-      <button class="arrow next" data-go="home" aria-label="Next room"></button>
-    </div>
-
-    <div class="release" aria-label="Listen">
-      <img src="https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg" alt="Pilgrim's Pace cover artwork">
-      <div class="services">
-        <a class="service" href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz?si=8Lk2luENT92Kbbb_65MvcQ&utm_source=copy-link" target="_blank" rel="noopener noreferrer"><span>Spotify</span><span>Listen</span></a>
-        <a class="service" href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank" rel="noopener noreferrer"><span>Apple Music</span><span>Listen</span></a>
-        <a class="service" href="https://music.youtube.com/watch?v=ROwIV9T7IIc&si=0AdnKWGgAymDhcqf" target="_blank" rel="noopener noreferrer"><span>YouTube Music</span><span>Listen</span></a>
-        <a class="service" href="https://music.amazon.com.au/albums/B0HKZ3QZ2M?marketplaceId=A39IBJ37TRP1C6&musicTerritory=AU&ref=dm_sh_pVFmZyiynyFVsL5KDXfGFj46I" target="_blank" rel="noopener noreferrer"><span>Amazon Music</span><span>Listen</span></a>
-        <a class="service" href="https://tidal.com/album/564211468/u" target="_blank" rel="noopener noreferrer"><span>TIDAL</span><span>Listen</span></a>
-      </div>
-    </div>
-  </section>
-
-  <section id="home" class="room" aria-label="Dubai apartment">
-    <div class="room-name">Home</div>
-    <div class="room-nav">
-      <button class="arrow back" data-go="front" aria-label="Back to Downtown"></button>
-      <button class="arrow next" data-go="drive" aria-label="Next room"></button>
-    </div>
-  </section>
-
-  <nav class="dock" aria-label="Rooms">
-    <button class="active" data-go="front">Downtown</button>
-    <button data-go="drive">Drive</button>
-    <button data-go="fountain">Fountain</button>
-    <button data-go="studio">Studio</button>
-    <button data-go="home">Home</button>
-  </nav>
 </div>
 
-<script>
-(() => {
-  const ids = ['front','drive','fountain','studio','home'];
-  const rooms = [...document.querySelectorAll('.room')];
-  const controls = [...document.querySelectorAll('[data-go]')];
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-  function show(id){
-    if(!ids.includes(id)) id = 'front';
-    document.body.dataset.room = id;
-    rooms.forEach(room => room.classList.toggle('active', room.id === id));
-    document.querySelectorAll('.dock [data-go]').forEach(b => b.classList.toggle('active', b.dataset.go === id));
-    history.replaceState(null,'','#'+id);
+const canvas = document.getElementById('canvas');
+const fade = document.getElementById('fade');
+const loaderEl = document.getElementById('loader');
+const progressEl = document.getElementById('loadProgress');
+const errorEl = document.getElementById('error');
+const backBtn = document.getElementById('back');
+
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setSize(innerWidth, innerHeight, false);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080705);
+scene.fog = new THREE.FogExp2(0x080705, 0.018);
+
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, .05, 150);
+camera.position.set(22, 15, 24);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = .06;
+controls.enablePan = false;
+controls.minDistance = 4;
+controls.maxDistance = 42;
+controls.maxPolarAngle = Math.PI * .485;
+controls.target.set(0, 3, 0);
+
+scene.add(new THREE.HemisphereLight(0xcbd7ff, 0x5c3516, 1.5));
+const moon = new THREE.DirectionalLight(0xb7c7ff, 3.0);
+moon.position.set(12, 22, 12);
+moon.castShadow = true;
+moon.shadow.mapSize.set(2048,2048);
+moon.shadow.camera.left = -24;
+moon.shadow.camera.right = 24;
+moon.shadow.camera.top = 24;
+moon.shadow.camera.bottom = -24;
+scene.add(moon);
+
+const warm = new THREE.PointLight(0xffbd67, 70, 30, 2);
+warm.position.set(-6, 5, 3);
+scene.add(warm);
+
+const groups = {
+  city: new THREE.Group(),
+  studio: new THREE.Group(),
+  home: new THREE.Group()
+};
+scene.add(groups.city, groups.studio, groups.home);
+groups.studio.visible = false;
+groups.home.visible = false;
+
+// Downtown ground
+const groundMat = new THREE.MeshStandardMaterial({color:0x17130e, roughness:.86, metalness:.08});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(48,48), groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+groups.city.add(ground);
+
+// Roads
+const roadMat = new THREE.MeshStandardMaterial({color:0x090909, roughness:.9});
+function road(x,z,w,d,rot=0){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,d), roadMat);
+  m.rotation.x=-Math.PI/2; m.rotation.z=rot; m.position.set(x,.012,z); m.receiveShadow=true; groups.city.add(m); return m;
+}
+road(2,3,34,4,-.14);
+road(-4,-8,30,3.1,.38);
+
+// Fountain lake, actual 3D water geometry
+const lake = new THREE.Mesh(
+  new THREE.CircleGeometry(5.3,96),
+  new THREE.MeshPhysicalMaterial({color:0x173a3d, roughness:.2, metalness:.18, transmission:.18, transparent:true, opacity:.9})
+);
+lake.rotation.x = -Math.PI/2;
+lake.scale.set(1.55,.78,1);
+lake.position.set(-6,.035,-1);
+groups.city.add(lake);
+
+const fountainRing = new THREE.Mesh(
+  new THREE.TorusGeometry(3.4,.025,8,120),
+  new THREE.MeshBasicMaterial({color:0xd9c9a3, transparent:true, opacity:.55})
+);
+fountainRing.rotation.x=Math.PI/2;
+fountainRing.scale.set(1.55,.78,1);
+fountainRing.position.set(-6,.07,-1);
+groups.city.add(fountainRing);
+
+// Surrounding actual WebGL buildings
+const buildingMats = [
+  new THREE.MeshStandardMaterial({color:0x211b15, roughness:.58, metalness:.38}),
+  new THREE.MeshStandardMaterial({color:0x30251a, roughness:.55, metalness:.3}),
+  new THREE.MeshStandardMaterial({color:0x151719, roughness:.42, metalness:.54})
+];
+const cityLayout = [
+  [-13,4,3.2,7.0,3.0],[-10,8,2.6,10.5,2.7],[-7,9,3.4,6.5,3.2],
+  [-12,-3,3.5,5.0,3.5],[-9,-6,2.8,8.4,2.8],[-4,8,3.0,4.8,3.0],
+  [6,8,3.8,9.0,3.8],[10,6,3.2,6.6,3.2],[13,2,2.7,8.0,2.7],
+  [11,-5,3.2,5.6,3.2],[7,-9,3.3,7.2,3.3],[2,-10,2.8,4.8,2.8],
+  [-13,-10,3.4,6.0,3.4],[-1,10,2.5,7.0,2.5]
+];
+cityLayout.forEach((b,i)=>{
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(b[2],b[3],b[4]), buildingMats[i%buildingMats.length]);
+  mesh.position.set(b[0],b[3]/2,b[1]); mesh.castShadow=true; mesh.receiveShadow=true; groups.city.add(mesh);
+  const crown = new THREE.Mesh(new THREE.BoxGeometry(b[2]*.82,.12,b[4]*.82), new THREE.MeshBasicMaterial({color:0xd1a85e}));
+  crown.position.set(b[0],b[3]+.07,b[1]); groups.city.add(crown);
+});
+
+// Lit boulevard bollards
+for(let i=-12;i<=12;i+=2.4){
+  const l = new THREE.PointLight(0xffb35e,8,4,2);
+  l.position.set(i,.35,1.2 - i*.14);
+  groups.city.add(l);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(.05,8,8), new THREE.MeshBasicMaterial({color:0xffc47b}));
+  bulb.position.copy(l.position); groups.city.add(bulb);
+}
+
+// Palm-like silhouettes
+function palm(x,z,s=1){
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.07,.11,1.8*s,8),new THREE.MeshStandardMaterial({color:0x5a3c20,roughness:1}));
+  trunk.position.set(x,.9*s,z); trunk.castShadow=true; groups.city.add(trunk);
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(.75*s,.55*s,7),new THREE.MeshStandardMaterial({color:0x183020,roughness:.95}));
+  leaves.position.set(x,1.9*s,z); leaves.rotation.x=Math.PI; leaves.castShadow=true; groups.city.add(leaves);
+}
+[[-7,5],[-5,5],[-3,5],[4,4],[6,4],[9,-2],[-10,-2],[-8,-9]].forEach(p=>palm(...p,1));
+
+// 3D navigation markers
+const markerObjects = [];
+function addMarker(room,pos){
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.25,.035,10,32),new THREE.MeshBasicMaterial({color:0xffcc72}));
+  ring.rotation.x=Math.PI/2;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(.12,.34,16),new THREE.MeshBasicMaterial({color:0xffd58a}));
+  tip.position.y=.28;
+  [ring,tip].forEach(m=>{m.userData.room=room;g.add(m)});
+  g.position.copy(pos); g.userData.baseY=pos.y; g.userData.room=room;
+  groups.city.add(g); markerObjects.push(g);
+}
+addMarker('drive',new THREE.Vector3(7,.25,5));
+addMarker('fountain',new THREE.Vector3(-6,.25,-1));
+addMarker('studio',new THREE.Vector3(11,.25,-5));
+addMarker('home',new THREE.Vector3(-11,.25,-7));
+
+const gltfLoader = new GLTFLoader();
+let loaded = 0;
+function stepLoad(){ loaded++; progressEl.style.width = (loaded/3*100)+'%'; }
+
+// MIT Burj Khalifa GLB from World Architecture Atlas 3D
+const burjURL = 'https://cdn.jsdelivr.net/gh/hszzhua2/world-architecture-atlas-3d@clean-main/apps/geolibre-desktop/public/models/burj-khalifa.glb';
+// CC0 studio and apartment models from 3DAssets.dev
+const studioURL = 'https://cdn.3dassets.dev/assets/33834/v1/model.glb';
+const homeURL = 'https://cdn.3dassets.dev/assets/29882/v1/model.glb';
+
+function normalizeModel(obj,targetSize=10,groundIt=true){
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const max = Math.max(size.x,size.y,size.z) || 1;
+  obj.scale.setScalar(targetSize/max);
+  const box2 = new THREE.Box3().setFromObject(obj);
+  const c = new THREE.Vector3(); box2.getCenter(c);
+  obj.position.x -= c.x; obj.position.z -= c.z;
+  if(groundIt) obj.position.y -= box2.min.y;
+  obj.traverse(n=>{
+    if(n.isMesh){
+      n.castShadow=true;n.receiveShadow=true;
+      if(n.material){ n.material.side=THREE.DoubleSide; }
+    }
+  });
+  return obj;
+}
+
+async function loadModels(){
+  try{
+    const [burjG,studioG,homeG] = await Promise.all([
+      gltfLoader.loadAsync(burjURL).then(v=>{stepLoad();return v}),
+      gltfLoader.loadAsync(studioURL).then(v=>{stepLoad();return v}),
+      gltfLoader.loadAsync(homeURL).then(v=>{stepLoad();return v})
+    ]);
+
+    const burj = normalizeModel(burjG.scene,18);
+    burj.position.set(0,0,-1.5);
+    groups.city.add(burj);
+
+    const studio = normalizeModel(studioG.scene,12);
+    groups.studio.add(studio);
+    const studioFloor = new THREE.Mesh(new THREE.CircleGeometry(13,64),new THREE.MeshStandardMaterial({color:0x16110d,roughness:.86}));
+    studioFloor.rotation.x=-Math.PI/2;studioFloor.position.y=-.02;studioFloor.receiveShadow=true;groups.studio.add(studioFloor);
+    const studioLight = new THREE.PointLight(0xffa754,75,20,2);studioLight.position.set(-3,5,2);groups.studio.add(studioLight);
+
+    const home = normalizeModel(homeG.scene,13);
+    groups.home.add(home);
+    const homeFloor = new THREE.Mesh(new THREE.CircleGeometry(14,64),new THREE.MeshStandardMaterial({color:0x10100f,roughness:.9}));
+    homeFloor.rotation.x=-Math.PI/2;homeFloor.position.y=-.02;groups.home.add(homeFloor);
+    const homeLight = new THREE.PointLight(0xffc77f,65,18,2);homeLight.position.set(3,5,1);groups.home.add(homeLight);
+
+    progressEl.style.width='100%';
+    setTimeout(()=>loaderEl.classList.add('hide'),350);
+  }catch(err){
+    console.error(err);
+    loaderEl.style.display='none';
+    errorEl.style.display='grid';
   }
+}
 
-  controls.forEach(el => el.addEventListener('click', e => {
-    e.preventDefault();
-    show(el.dataset.go);
-  }));
+const views = {
+  downtown:{group:'city',pos:[22,15,24],target:[0,3,0]},
+  drive:{group:'city',pos:[11,3.5,14],target:[5,1.1,2.5]},
+  fountain:{group:'city',pos:[-12,5.2,9],target:[-6,.2,-1]},
+  studio:{group:'studio',pos:[8,5.4,9],target:[0,1,0]},
+  home:{group:'home',pos:[10,7.5,10],target:[0,1,0]}
+};
 
-  const initial = location.hash.slice(1);
-  show(ids.includes(initial) ? initial : 'front');
+let currentRoom='downtown';
+let animating=false;
+function setVisibleGroup(name){
+  groups.city.visible = name==='city';
+  groups.studio.visible = name==='studio';
+  groups.home.visible = name==='home';
+}
+function ease(t){return 1-Math.pow(1-t,3)}
+function animateCamera(toPos,toTarget,duration=900){
+  const fromPos=camera.position.clone();
+  const fromTarget=controls.target.clone();
+  const start=performance.now();
+  animating=true; controls.enabled=false;
+  return new Promise(resolve=>{
+    function frame(now){
+      const t=Math.min(1,(now-start)/duration),e=ease(t);
+      camera.position.lerpVectors(fromPos,toPos,e);
+      controls.target.lerpVectors(fromTarget,toTarget,e);
+      if(t<1) requestAnimationFrame(frame);
+      else{animating=false;controls.enabled=true;resolve()}
+    }
+    requestAnimationFrame(frame);
+  });
+}
+async function switchRoom(room){
+  if(!views[room]||animating||room===currentRoom)return;
+  currentRoom=room;
+  document.body.dataset.room=room;
+  fade.classList.add('on');
+  await new Promise(r=>setTimeout(r,260));
+  setVisibleGroup(views[room].group);
+  const p=new THREE.Vector3(...views[room].pos),t=new THREE.Vector3(...views[room].target);
+  camera.position.copy(p);controls.target.copy(t);controls.update();
+  fade.classList.remove('on');
+  history.replaceState(null,'','#'+room);
+}
+backBtn.addEventListener('click',()=>switchRoom('downtown'));
 
-  // Preload room images so switching is immediate.
-  [
-    'https://images.pexels.com/photos/14749802/pexels-photo-14749802.jpeg?auto=compress&cs=tinysrgb&w=2400',
-    'https://images.pexels.com/photos/30400180/pexels-photo-30400180.jpeg?auto=compress&cs=tinysrgb&w=2200',
-    'https://images.pexels.com/photos/7586656/pexels-photo-7586656.jpeg?auto=compress&cs=tinysrgb&w=2200',
-    'https://images.pexels.com/photos/32418264/pexels-photo-32418264.jpeg?auto=compress&cs=tinysrgb&w=2200'
-  ].forEach(src => { const img = new Image(); img.src = src; });
-})();
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+let downX=0,downY=0;
+canvas.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY});
+canvas.addEventListener('pointerup',e=>{
+  if(currentRoom!=='downtown' || Math.hypot(e.clientX-downX,e.clientY-downY)>8)return;
+  const rect=canvas.getBoundingClientRect();
+  pointer.x=((e.clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(markerObjects,true);
+  if(hits.length && hits[0].object.userData.room) switchRoom(hits[0].object.userData.room);
+});
+
+window.addEventListener('resize',()=>{
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+  renderer.setSize(innerWidth,innerHeight,false);
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+});
+
+const clock=new THREE.Clock();
+function render(){
+  requestAnimationFrame(render);
+  const t=clock.getElapsedTime();
+  if(groups.city.visible){
+    markerObjects.forEach((m,i)=>{
+      m.position.y=m.userData.baseY+Math.sin(t*2+i)*.08;
+      m.rotation.y=t*.35;
+      m.visible=m.userData.room!==currentRoom;
+    });
+  }
+  controls.update();
+  renderer.render(scene,camera);
+}
+loadModels().then(()=>{
+  const hash=location.hash.slice(1);
+  if(views[hash] && hash!=='downtown') switchRoom(hash);
+});
+render();
+
+// Licenses:
+// Burj Khalifa GLB: World Architecture Atlas 3D, MIT license.
+// Studio + apartment GLBs: 3DAssets.dev, CC0 1.0.
 </script>
 </body>
 </html>
