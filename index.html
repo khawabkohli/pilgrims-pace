@@ -525,6 +525,34 @@ gltf.load('https://cdn.3dassets.dev/assets/38822/v1/model.glb',g=>{
   fitModel(g.scene,.82,new THREE.Vector3(0,.84,-.63),new THREE.MeshStandardMaterial({color:0x23262b,roughness:.34,metalness:.68}));
   work.add(g.scene);
 },undefined,()=>{});
+
+// Pilgrim's Pace on the laptop display
+const laptopCanvas=document.createElement('canvas');
+laptopCanvas.width=1024;laptopCanvas.height=640;
+const lx=laptopCanvas.getContext('2d');
+const lg=lx.createLinearGradient(0,0,1024,640);
+lg.addColorStop(0,'#090a0d');lg.addColorStop(1,'#281a10');
+lx.fillStyle=lg;lx.fillRect(0,0,1024,640);
+lx.fillStyle='#b58a4f';lx.fillRect(58,76,250,250);
+lx.fillStyle='rgba(0,0,0,.18)';lx.fillRect(78,96,210,210);
+lx.fillStyle='#f4efe5';lx.font='700 64px Georgia';lx.fillText("Pilgrim's Pace",354,170);
+lx.fillStyle='rgba(244,239,229,.68)';lx.font='500 30px Arial';lx.fillText('Khawab Kohli',356,220);
+lx.fillStyle='rgba(255,255,255,.12)';lx.fillRect(356,292,500,10);
+lx.fillStyle='#d6ad68';lx.fillRect(356,292,220,10);
+lx.fillStyle='rgba(244,239,229,.72)';lx.font='500 22px Arial';lx.fillText('Now Playing',356,365);
+lx.fillStyle='rgba(244,239,229,.42)';lx.font='18px Arial';lx.fillText('Pilgrim\'s Pace • 2026',356,408);
+
+const laptopTex=new THREE.CanvasTexture(laptopCanvas);
+laptopTex.encoding=THREE.sRGBEncoding;
+const laptopScreen=new THREE.Mesh(
+  new THREE.PlaneGeometry(.48,.30),
+  new THREE.MeshBasicMaterial({map:laptopTex,toneMapped:false})
+);
+laptopScreen.position.set(.02,1.155,-.805);
+laptopScreen.rotation.y=.62;
+laptopScreen.rotation.x=-.08;
+work.add(laptopScreen);
+
 const laptopHit=box(work,.95,.34,.70,new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}),0,.98,-.64,false);
 laptopHit.userData.action='release';
 
