@@ -42,6 +42,25 @@ linear-gradient(180deg,rgba(0,0,0,.10),transparent 30%,rgba(0,0,0,.13))}
   transition:transform .18s ease,opacity .22s ease,background .18s ease;
 }
 .hotspot::before{content:"→";font-size:24px;line-height:1;transform:translateY(-1px)}
+.hotspot[data-label]::after{
+  content:attr(data-label);
+  position:absolute;
+  left:50%;
+  top:calc(100% + 8px);
+  transform:translateX(-50%);
+  padding:6px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(0,0,0,.58);
+  backdrop-filter:blur(8px);
+  color:rgba(255,255,255,.86);
+  font-size:9px;
+  line-height:1;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  pointer-events:none;
+}
 .hotspot.gold{border-color:rgba(220,181,108,.95);color:#f2d69d;box-shadow:0 10px 34px rgba(0,0,0,.33),0 0 28px rgba(212,174,104,.16)}
 .hotspot:hover{transform:scale(1.07);background:rgba(4,4,4,.48)}
 .hotspot:focus-visible{outline:2px solid #fff;outline-offset:4px}
@@ -54,6 +73,25 @@ linear-gradient(180deg,rgba(0,0,0,.10),transparent 30%,rgba(0,0,0,.13))}
   box-shadow:0 12px 34px rgba(0,0,0,.26)
 }
 body:not([data-view="city"]) #back{display:grid}
+#back[data-label]::after{
+  content:attr(data-label);
+  position:absolute;
+  left:50%;
+  bottom:calc(100% + 8px);
+  transform:translateX(-50%);
+  padding:6px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(0,0,0,.58);
+  backdrop-filter:blur(8px);
+  color:rgba(255,255,255,.82);
+  font-size:9px;
+  line-height:1;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  pointer-events:none;
+}
 
 #roomHint{
   position:absolute;z-index:24;left:50%;bottom:var(--safe-b);transform:translateX(-50%);
@@ -98,11 +136,11 @@ body[data-view="work"] #roomHint{display:block}
   <div id="vignette"></div>
   <div id="fade"></div>
 
-  <button id="workHotspot" class="hotspot gold" aria-label="Enter work room"></button>
-  <button id="productionHotspot" class="hotspot gold" aria-label="Enter production room"></button>
-  <button id="terraceHotspot" class="hotspot" aria-label="Move to water terrace"></button>
+  <button id="workHotspot" class="hotspot gold" data-label="Work Room" aria-label="Enter work room"></button>
+  <button id="productionHotspot" class="hotspot gold" data-label="Studio" aria-label="Enter production room"></button>
+  <button id="terraceHotspot" class="hotspot" data-label="Waterfront" aria-label="Move to water terrace"></button>
 
-  <button id="back" aria-label="Back">←</button>
+  <button id="back" data-label="Back" aria-label="Back">←</button>
   <div id="roomHint">drag to look around · tap the laptop</div>
 
   <section id="release">
