@@ -178,6 +178,7 @@ body[data-view="work"] #roomHint{display:block}
 <script>
 window.__bootError=false;
 window.addEventListener('error',function(e){
+  if(e.target && e.target!==window) return;
   window.__bootError=true;
   const l=document.getElementById('loader');
   if(l) l.innerHTML='<div style="max-width:520px;padding:22px;color:#eee;font:12px/1.55 Arial;text-align:center">3D scene error: '+String(e.message||'unknown error')+'</div>';
@@ -1261,6 +1262,7 @@ function buildHouseOfElsewhere(){
     [608,376,891,746],
     [904,456,1197,670]
   ];
+  const khannaAspects=khannaRects.map(r=>(r[2]-r[0])/(r[3]-r[1]));
 
   function atlasTexture(i){
     const rect=khannaRects[i];
@@ -1273,7 +1275,6 @@ function buildHouseOfElsewhere(){
       tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
       tex.needsUpdate=true;
     });
-    t.userData.aspect=(x1-x0)/(y1-y0);
     return t;
   }
 
@@ -1330,15 +1331,15 @@ function buildHouseOfElsewhere(){
 
   const backLeft=atlasTexture(2);
   const backRight=atlasTexture(5);
-  addCanvasArt(gallery,{x:-3.62,y:2.18,z:backZ+.035,maxW:1.35,maxH:1.78,texture:backLeft,aspect:backLeft.userData.aspect});
-  addCanvasArt(gallery,{x:3.62,y:2.18,z:backZ+.035,maxW:1.35,maxH:1.78,texture:backRight,aspect:backRight.userData.aspect});
+  addCanvasArt(gallery,{x:-3.62,y:2.18,z:backZ+.035,maxW:1.35,maxH:1.78,texture:backLeft,aspect:khannaAspects[2]});
+  addCanvasArt(gallery,{x:3.62,y:2.18,z:backZ+.035,maxW:1.35,maxH:1.78,texture:backRight,aspect:khannaAspects[5]});
 
   const leftIds=[0,1,6],rightIds=[3,4,7],wallPositions=[-2.75,-.05,2.65];
   wallPositions.forEach((z,i)=>{
     const lt=atlasTexture(leftIds[i]);
     const rt=atlasTexture(rightIds[i]);
-    addCanvasArt(gallery,{x:-sideX-.035,y:2.10,z,maxW:1.52,maxH:1.78,ry:Math.PI/2,texture:lt,aspect:lt.userData.aspect});
-    addCanvasArt(gallery,{x:sideX+.035,y:2.10,z,maxW:1.52,maxH:1.78,ry:-Math.PI/2,texture:rt,aspect:rt.userData.aspect});
+    addCanvasArt(gallery,{x:-sideX-.035,y:2.10,z,maxW:1.52,maxH:1.78,ry:Math.PI/2,texture:lt,aspect:khannaAspects[leftIds[i]]});
+    addCanvasArt(gallery,{x:sideX+.035,y:2.10,z,maxW:1.52,maxH:1.78,ry:-Math.PI/2,texture:rt,aspect:khannaAspects[rightIds[i]]});
   });
 
   const hemi=new THREE.HemisphereLight(0xb9a48c,0x100b08,.27);
