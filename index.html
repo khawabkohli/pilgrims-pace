@@ -1220,14 +1220,15 @@ rebuildProductionRoom();
 function buildHouseOfElsewhere(){
   gallery.clear();
 
-  const W=12.0,D=9.0,H=4.30;
+  // Wider gallery so the complete collection is visible from the entrance.
+  const W=15.6,D=9.8,H=4.60;
   const backZ=-D/2+.065;
-  const sideX=W/2-.065;
   const plaster=new THREE.MeshStandardMaterial({color:0x30251e,roughness:.94,metalness:.01,side:THREE.DoubleSide});
   const plasterDark=new THREE.MeshStandardMaterial({color:0x211a16,roughness:.96,metalness:.01,side:THREE.DoubleSide});
   const floorMat=new THREE.MeshStandardMaterial({color:0x1b120d,roughness:.48,metalness:.03,map:woodTex,bumpMap:woodTex,bumpScale:.014});
   const canvasEdge=new THREE.MeshStandardMaterial({color:0x17120f,roughness:.72,metalness:.01});
 
+  // room shell
   box(gallery,W,.10,D,floorMat,0,.05,0,false);
   box(gallery,.12,H,D,plaster,-W/2,H/2,0,false);
   box(gallery,.12,H,D,plaster,W/2,H/2,0,false);
@@ -1237,11 +1238,12 @@ function buildHouseOfElsewhere(){
   box(gallery,.055,.11,D-.20,MAT.darkWalnut,-W/2+.09,.11,0,false);
   box(gallery,.055,.11,D-.20,MAT.darkWalnut,W/2-.09,.11,0,false);
 
-  box(gallery,5.70,.020,2.60,new THREE.MeshStandardMaterial({color:0x241a14,roughness:.98}),0,.075,1.35,false);
-  box(gallery,2.82,.18,.70,MAT.darkWalnut,0,.48,1.33,false);
-  box(gallery,2.58,.09,.60,new THREE.MeshStandardMaterial({color:0x3a302b,roughness:.96}),0,.615,1.33,false);
-  box(gallery,.12,.43,.12,MAT.darkWalnut,-1.14,.255,1.33,false);
-  box(gallery,.12,.43,.12,MAT.darkWalnut,1.14,.255,1.33,false);
+  // bench / rug
+  box(gallery,6.10,.020,2.80,new THREE.MeshStandardMaterial({color:0x241a14,roughness:.98}),0,.075,1.55,false);
+  box(gallery,3.00,.18,.72,MAT.darkWalnut,0,.48,1.52,false);
+  box(gallery,2.74,.09,.62,new THREE.MeshStandardMaterial({color:0x3a302b,roughness:.96}),0,.615,1.52,false);
+  box(gallery,.12,.43,.12,MAT.darkWalnut,-1.22,.255,1.52,false);
+  box(gallery,.12,.43,.12,MAT.darkWalnut,1.22,.255,1.52,false);
 
   const artLoader=new THREE.TextureLoader();
   artLoader.setCrossOrigin('anonymous');
@@ -1267,7 +1269,7 @@ function buildHouseOfElsewhere(){
   function atlasTexture(i){
     const rect=khannaRects[i];
     const x0=rect[0],y0=rect[1],x1=rect[2],y1=rect[3];
-    const t=artLoader.load(khannaAtlasSource,tex=>{
+    return artLoader.load(khannaAtlasSource,tex=>{
       tex.encoding=THREE.sRGBEncoding;
       tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
       tex.repeat.set((x1-x0)/atlasW,(y1-y0)/atlasH);
@@ -1275,20 +1277,19 @@ function buildHouseOfElsewhere(){
       tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
       tex.needsUpdate=true;
     });
-    return t;
   }
 
-  function addCanvasArt(parent,opts){
+  function addCanvasArt(opts){
     const x=opts.x,y=opts.y,z=opts.z,maxW=opts.maxW,maxH=opts.maxH;
-    const ry=opts.ry||0,texture=opts.texture,aspect=opts.aspect||1,hero=!!opts.hero;
+    const texture=opts.texture,aspect=opts.aspect||1,hero=!!opts.hero;
     let w=maxW,h=w/aspect;
     if(h>maxH){h=maxH;w=h*aspect;}
 
     const g=new THREE.Group();
     g.position.set(x,y,z);
-    g.rotation.y=ry;
-    parent.add(g);
+    gallery.add(g);
 
+    // Canvas depth only; no decorative frame or matte.
     const backing=new THREE.Mesh(new THREE.BoxGeometry(w,h,.045),canvasEdge);
     backing.castShadow=true;
     backing.receiveShadow=true;
@@ -1308,9 +1309,9 @@ function buildHouseOfElsewhere(){
     );
     art.position.z=.024;
     g.add(art);
-    return g;
   }
 
+  // Khawab's artwork stays the hero canvas.
   const heroTex=artLoader.load('https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg',tex=>{
     tex.encoding=THREE.sRGBEncoding;
     tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
@@ -1326,40 +1327,47 @@ function buildHouseOfElsewhere(){
     tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
     tex.needsUpdate=true;
   });
+  addCanvasArt({x:0,y:2.52,z:backZ+.035,maxW:3.05,maxH:3.05,texture:heroTex,aspect:1,hero:true});
 
-  addCanvasArt(gallery,{x:0,y:2.38,z:backZ+.035,maxW:2.90,maxH:2.90,texture:heroTex,aspect:1,hero:true});
-
-  const backLeft=atlasTexture(2);
-  const backRight=atlasTexture(5);
-  addCanvasArt(gallery,{x:-3.62,y:2.18,z:backZ+.035,maxW:1.35,maxH:1.78,texture:backLeft,aspect:khannaAspects[2]});
-  addCanvasArt(gallery,{x:3.62,y:2.18,z:backZ+.035,maxW:1.35,maxH:1.78,texture:backRight,aspect:khannaAspects[5]});
-
-  const leftIds=[0,1,6],rightIds=[3,4,7],wallPositions=[-2.75,-.05,2.65];
-  wallPositions.forEach((z,i)=>{
-    const lt=atlasTexture(leftIds[i]);
-    const rt=atlasTexture(rightIds[i]);
-    addCanvasArt(gallery,{x:-sideX-.035,y:2.10,z,maxW:1.52,maxH:1.78,ry:Math.PI/2,texture:lt,aspect:khannaAspects[leftIds[i]]});
-    addCanvasArt(gallery,{x:sideX+.035,y:2.10,z,maxW:1.52,maxH:1.78,ry:-Math.PI/2,texture:rt,aspect:khannaAspects[rightIds[i]]});
+  // ALL eight actual Krishen Khanna works are now on the main gallery wall.
+  // Nothing is hidden around a corner anymore.
+  const slots=[
+    {i:0,x:-6.15,y:3.30,maxW:1.45,maxH:1.28},
+    {i:1,x:-4.15,y:3.30,maxW:1.78,maxH:1.22},
+    {i:2,x:-6.15,y:1.63,maxW:1.35,maxH:1.58},
+    {i:3,x:-4.15,y:1.63,maxW:1.36,maxH:1.58},
+    {i:4,x: 4.15,y:3.30,maxW:1.35,maxH:1.58},
+    {i:5,x: 6.15,y:3.30,maxW:1.42,maxH:1.56},
+    {i:6,x: 4.15,y:1.63,maxW:1.48,maxH:1.58},
+    {i:7,x: 6.15,y:1.63,maxW:1.80,maxH:1.22}
+  ];
+  slots.forEach(s=>{
+    addCanvasArt({
+      x:s.x,y:s.y,z:backZ+.035,maxW:s.maxW,maxH:s.maxH,
+      texture:atlasTexture(s.i),aspect:khannaAspects[s.i]
+    });
   });
 
-  const hemi=new THREE.HemisphereLight(0xb9a48c,0x100b08,.27);
+  // Warm museum lighting aimed at the entire collection.
+  const hemi=new THREE.HemisphereLight(0xb9a48c,0x100b08,.28);
   gallery.add(hemi);
 
-  function artSpot(x,z,tx,ty,tz,intensity=4.4,angle=.27){
-    const s=new THREE.SpotLight(0xffc98d,intensity,7.8,angle,.64,1.45);
-    s.position.set(x,H-.18,z);
-    s.target.position.set(tx,ty,tz);
+  function artSpot(x,z,tx,ty,intensity=4.0,angle=.28){
+    const s=new THREE.SpotLight(0xffc98d,intensity,8.8,angle,.64,1.45);
+    s.position.set(x,H-.16,z);
+    s.target.position.set(tx,ty,backZ);
     s.castShadow=true;
     s.shadow.mapSize.set(512,512);
     gallery.add(s,s.target);
   }
 
-  artSpot(0,-2.05,0,2.30,backZ,7.1,.31);
-  artSpot(-3.62,-1.95,-3.62,2.12,backZ,3.7,.25);
-  artSpot(3.62,-1.95,3.62,2.12,backZ,3.7,.25);
-  artSpot(-4.05,.10,-sideX,2.04,.10,3.6,.33);
-  artSpot(4.05,.10,sideX,2.04,.10,3.6,.33);
+  artSpot(0,-2.2,0,2.45,7.4,.31);
+  [-6.15,-4.15,4.15,6.15].forEach((x,idx)=>{
+    artSpot(x,-1.85,x,3.15,3.5,.25);
+    artSpot(x,-.70,x,1.65,3.2,.27);
+  });
 
+  // Small plaque under the hero canvas.
   const plaque=document.createElement('canvas');
   plaque.width=760;plaque.height=150;
   const px=plaque.getContext('2d');
@@ -1373,7 +1381,7 @@ function buildHouseOfElsewhere(){
     new THREE.PlaneGeometry(1.55,.30),
     new THREE.MeshBasicMaterial({map:plaqueTex,toneMapped:false})
   );
-  plaqueMesh.position.set(0,.57,backZ+.040);
+  plaqueMesh.position.set(0,.56,backZ+.040);
   gallery.add(plaqueMesh);
 }
 buildHouseOfElsewhere();
@@ -1395,7 +1403,7 @@ const viewConfig={
   terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
   work:{pos:new THREE.Vector3(4.20,1.98,4.45),target:new THREE.Vector3(0,1.08,-.58),min:2.5,max:7.0},
   production:{pos:new THREE.Vector3(4.85,2.12,5.35),target:new THREE.Vector3(0,1.02,-.48),min:2.8,max:8.2},
-  gallery:{pos:new THREE.Vector3(0,2.08,7.65),target:new THREE.Vector3(0,2.03,-2.85),min:5.4,max:10.6}
+  gallery:{pos:new THREE.Vector3(0,2.24,9.20),target:new THREE.Vector3(0,2.18,-3.42),min:6.4,max:12.2}
 };
 function setCamera(name){
   const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
