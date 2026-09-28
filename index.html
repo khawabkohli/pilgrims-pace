@@ -181,9 +181,9 @@ controls.enablePan=false;
 controls.maxPolarAngle=Math.PI*.49;
 controls.minPolarAngle=Math.PI*.16;
 
-const ambient=new THREE.HemisphereLight(0x7082a8,0x120906,.62);
+const ambient=new THREE.HemisphereLight(0x6c7fa4,0x0b0705,.34);
 scene.add(ambient);
-const moon=new THREE.DirectionalLight(0x8ea8df,1.55);
+const moon=new THREE.DirectionalLight(0x8ea8df,.88);
 moon.position.set(18,32,18);
 moon.castShadow=true;
 moon.shadow.mapSize.set(1536,1536);
@@ -198,15 +198,15 @@ work.visible=false;production.visible=false;
 
 const MAT={
   asphalt:new THREE.MeshStandardMaterial({color:0x090a0b,roughness:.94,metalness:.02}),
-  concrete:new THREE.MeshStandardMaterial({color:0x29241f,roughness:.72,metalness:.06}),
-  concrete2:new THREE.MeshStandardMaterial({color:0x1b1a18,roughness:.78,metalness:.04}),
+  concrete:new THREE.MeshStandardMaterial({color:0x1a1a19,roughness:.76,metalness:.05}),
+  concrete2:new THREE.MeshStandardMaterial({color:0x0e1115,roughness:.86,metalness:.03}),
   metal:new THREE.MeshStandardMaterial({color:0x16181c,roughness:.31,metalness:.62}),
   wood:new THREE.MeshStandardMaterial({color:0x3a271b,roughness:.58,metalness:.03}),
   dark:new THREE.MeshStandardMaterial({color:0x111214,roughness:.56,metalness:.19}),
   wall:new THREE.MeshStandardMaterial({color:0x181715,roughness:.86,metalness:.01,side:THREE.DoubleSide}),
   rug:new THREE.MeshStandardMaterial({color:0x302b27,roughness:.96}),
   gold:new THREE.MeshStandardMaterial({color:0xc59a56,roughness:.28,metalness:.74}),
-  water:new THREE.MeshPhysicalMaterial({color:0x07141b,roughness:.16,metalness:.32,clearcoat:1,clearcoatRoughness:.15,transparent:true,opacity:.93}),
+  water:new THREE.MeshPhysicalMaterial({color:0x061018,roughness:.10,metalness:.62,clearcoat:1,clearcoatRoughness:.08,transparent:true,opacity:.98}),
   walnut:new THREE.MeshStandardMaterial({color:0x2c1a11,roughness:.50,metalness:.04}),
   darkWalnut:new THREE.MeshStandardMaterial({color:0x1d120d,roughness:.58,metalness:.03}),
   aluminum:new THREE.MeshStandardMaterial({color:0x9fa5ad,roughness:.27,metalness:.92}),
@@ -266,15 +266,25 @@ function glassFacade(seed){
 }
 
 /* ---------- CITY ENVIRONMENT ---------- */
-box(city,60,.35,52,MAT.concrete2,0,-.18,0,false);
+box(city,66,.32,58,MAT.concrete2,0,-.16,0,false);
+
+// secondary city blocks break up the giant "model board" surface
+[
+  [-18,13,17,9], [3,14,20,8], [19,6,12,9],
+  [-18,-11,15,10], [2,-14,18,7], [19,-10,13,10]
+].forEach(b=>{
+  box(city,b[2],.055,b[3],new THREE.MeshStandardMaterial({color:0x17191b,roughness:.90}),b[0],.025,b[1],false);
+});
 
 // Boulevard
 const road=box(city,47,.04,4.8,MAT.asphalt,0,.035,5,false);
 road.rotation.y=-.16;
 for(let i=-19;i<20;i+=2.5){
-  const line=box(city,1.25,.012,.06,new THREE.MeshBasicMaterial({color:0xd6b982}),i,.068,5,false);
+  const line=box(city,1.25,.012,.06,new THREE.MeshBasicMaterial({color:0xc99b57}),i,.068,5,false);
   line.rotation.y=-.16;
 }
+const curbA=box(city,48,.025,.10,new THREE.MeshBasicMaterial({color:0x8b6a3f}),0,.075,2.54,false);curbA.rotation.y=-.16;
+const curbB=box(city,48,.025,.10,new THREE.MeshBasicMaterial({color:0x8b6a3f}),0,.075,7.46,false);curbB.rotation.y=-.16;
 
 // secondary road
 const road2=box(city,28,.035,3.1,MAT.asphalt,-5,.03,-8,false);road2.rotation.y=.32;
@@ -282,7 +292,7 @@ const road2=box(city,28,.035,3.1,MAT.asphalt,-5,.03,-8,false);road2.rotation.y=.
 // lake
 const lake=new THREE.Mesh(new THREE.CircleGeometry(8.3,96),MAT.water);
 lake.rotation.x=-Math.PI/2;lake.scale.set(1.55,.78,1);lake.position.set(-5,.02,-1.2);lake.receiveShadow=true;city.add(lake);
-const lakeEdge=new THREE.Mesh(new THREE.TorusGeometry(6.3,.035,8,128),new THREE.MeshBasicMaterial({color:0xc79b5a,transparent:true,opacity:.36}));
+const lakeEdge=new THREE.Mesh(new THREE.TorusGeometry(6.3,.035,8,128),new THREE.MeshBasicMaterial({color:0xd2a25c,transparent:true,opacity:.58}));
 lakeEdge.rotation.x=Math.PI/2;lakeEdge.scale.set(1.55,.78,1);lakeEdge.position.set(-5,.065,-1.2);city.add(lakeEdge);
 
 // promenade
@@ -349,6 +359,33 @@ for(let i=0;i<16;i++){
   m.rotation.y=-a+.35;
 }
 
+// distant skyline belt: keeps the exterior from reading like an isolated tabletop diorama
+for(let i=0;i<34;i++){
+  const a=i/34*Math.PI*2;
+  const radius=25+(i%5)*1.25;
+  const x=Math.cos(a)*radius;
+  const z=Math.sin(a)*radius;
+  const h=2.6+(i%7)*.72;
+  const w=.9+(i%3)*.35;
+  const d=.85+((i+1)%3)*.32;
+  const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=-a+.15;city.add(g);
+  box(g,w,h,d,facade(120+i,0x17191c),0,h/2,0);
+  if(i%3===0){
+    const top=box(g,w*.72,.035,d*.72,new THREE.MeshBasicMaterial({color:0x8a6038}),0,h+.025,0,false);
+    top.material.transparent=true;top.material.opacity=.65;
+  }
+}
+
+// low glowing promenade bollards
+for(let i=0;i<28;i++){
+  const a=i/28*Math.PI*2;
+  const x=-5+Math.cos(a)*10.45;
+  const z=-1.2+Math.sin(a)*6.05;
+  const p=new THREE.PointLight(0xffa653,1.15,1.8,2);p.position.set(x,.34,z);city.add(p);
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.025,7,6),new THREE.MeshBasicMaterial({color:0xffb86b}));
+  bulb.position.copy(p.position);city.add(bulb);
+}
+
 // palms
 function palm(x,z,s=1){
   const g=new THREE.Group();g.position.set(x,0,z);city.add(g);
@@ -413,8 +450,8 @@ gltf.load(
 );
 
 // city practical lights
-const cityWarm=new THREE.PointLight(0xffa04b,42,38,2);cityWarm.position.set(-4,8,6);city.add(cityWarm);
-const cityCool=new THREE.DirectionalLight(0x8ea4d1,1.2);cityCool.position.set(-10,18,-8);city.add(cityCool);
+const cityWarm=new THREE.PointLight(0xffa04b,18,30,2);cityWarm.position.set(-4,6.5,6);city.add(cityWarm);
+const cityCool=new THREE.DirectionalLight(0x8ea4d1,.65);cityCool.position.set(-10,18,-8);city.add(cityCool);
 
 /* ---------- ROOMS ---------- */
 function buildRoom(parent,{w=8,d=6,h=3.2,windowBack=true}={}){
@@ -680,14 +717,18 @@ new THREE.RGBELoader().load(
 
 /* ---------- CAMERA & VIEWS ---------- */
 const viewConfig={
-  city:{pos:new THREE.Vector3(22,12,23),target:new THREE.Vector3(-1,5,-.5),min:10,max:42},
-  terrace:{pos:new THREE.Vector3(-14,4.8,12),target:new THREE.Vector3(-5,1,-1.2),min:6,max:24},
+  city:{pos:new THREE.Vector3(24,7.2,19),target:new THREE.Vector3(-1.5,4.3,-1.2),min:10,max:34},
+  terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
   work:{pos:new THREE.Vector3(4.1,2.05,4.65),target:new THREE.Vector3(0,1.05,-.65),min:2.3,max:7.5},
   production:{pos:new THREE.Vector3(4.6,2.18,5.05),target:new THREE.Vector3(.05,1.10,-.75),min:2.5,max:8.0}
 };
 function setCamera(name){
   const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
-  controls.minDistance=v.min;controls.maxDistance=v.max;controls.update();
+  controls.minDistance=v.min;controls.maxDistance=v.max;
+  renderer.toneMappingExposure=(name==='city'||name==='terrace')?.58:.90;
+  camera.fov=(name==='city'||name==='terrace')?39:43;
+  camera.updateProjectionMatrix();
+  controls.update();
 }
 setCamera('city');
 
@@ -698,9 +739,9 @@ const hsWork=document.getElementById('workHotspot');
 const hsProd=document.getElementById('productionHotspot');
 const hsTerrace=document.getElementById('terraceHotspot');
 
-const anchorWork=new THREE.Vector3(9.6,3.1,7.6);
-const anchorProd=new THREE.Vector3(-13.2,2.8,-5.4);
-const anchorTerrace=new THREE.Vector3(-5,.7,-1.0);
+const anchorWork=new THREE.Vector3(9.0,4.3,7.3);
+const anchorProd=new THREE.Vector3(-12.8,3.7,-5.0);
+const anchorTerrace=new THREE.Vector3(-4.7,.85,-.8);
 let current='city';
 
 async function transition(fn){
