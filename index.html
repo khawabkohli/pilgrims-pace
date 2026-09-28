@@ -87,15 +87,15 @@ viewer.scene.fog.enabled=true;
 viewer.scene.highDynamicRange=true;
 viewer.scene.postProcessStages.fxaa.enabled=true;
 viewer.scene.backgroundColor=Cesium.Color.BLACK;
-viewer.camera.frustum.fov=Cesium.Math.toRadians(38);
+viewer.camera.frustum.fov=Cesium.Math.toRadians(50);
 viewer.scene.screenSpaceCameraController.minimumZoomDistance=18;
 viewer.scene.screenSpaceCameraController.maximumZoomDistance=2800;
 
 const views={
-  // Cinematic drone positions, not "whole-city satellite map" positions.
-  downtown:{lon:55.2697,lat:25.1927,h:620,heading:39,pitch:-19},
-  drive:{lon:55.2706,lat:25.1936,h:88,heading:51,pitch:-8},
-  fountain:{lon:55.2735,lat:25.1941,h:125,heading:32,pitch:-15}
+  // Low drone viewpoints. The Burj now reads vertically instead of as a flat map texture.
+  downtown:{lon:55.26945,lat:25.19305,h:235,heading:43,pitch:-4},
+  drive:{lon:55.27055,lat:25.19375,h:62,heading:50,pitch:-1},
+  fountain:{lon:55.27320,lat:25.19435,h:108,heading:30,pitch:-5}
 };
 
 function setView(v){
@@ -128,7 +128,10 @@ setView(views.downtown);
 let tileset;
 try{
   tileset=await Cesium.createGooglePhotorealistic3DTileset();
-  tileset.maximumScreenSpaceError=5.5;
+  tileset.maximumScreenSpaceError=2.25;
+  tileset.dynamicScreenSpaceError=false;
+  tileset.cullRequestsWhileMoving=false;
+  tileset.preloadWhenHidden=true;
   viewer.scene.primitives.add(tileset);
 
   // Turn the daylight photogrammetry into a moody night treatment.
@@ -143,17 +146,17 @@ try{
         vec3 c=texture(colorTexture,v_textureCoordinates).rgb;
         float l=dot(c,vec3(0.2126,0.7152,0.0722));
 
-        // cool, dark base
-        vec3 n=c*vec3(0.17,0.20,0.28);
-        n=mix(n,vec3(l*0.095,l*0.11,l*0.16),0.46);
+        // Keep far more midtone detail so the photogrammetry still has depth.
+        vec3 n=c*vec3(0.28,0.33,0.43);
+        n=mix(n,vec3(l*0.16,l*0.19,l*0.27),0.22);
 
-        // retain only the brightest photographic details as warm city light
-        float lamp=smoothstep(0.72,0.98,l);
-        n+=vec3(1.0,0.50,0.18)*lamp*0.68;
+        // Bright photographic details become warm practical/city light.
+        float lamp=smoothstep(0.62,0.94,l);
+        n+=vec3(0.92,0.43,0.14)*lamp*0.46;
 
-        // tiny blue lift in shadows so geometry remains readable
-        n+=vec3(0.010,0.016,0.030);
-        n=pow(max(n,vec3(0.0)),vec3(0.88));
+        // Cool shadow floor preserves façades and street depth.
+        n+=vec3(0.018,0.025,0.043);
+        n=pow(max(n,vec3(0.0)),vec3(0.92));
         out_FragColor=vec4(n,1.0);
       }`
   });
@@ -162,11 +165,11 @@ try{
   const bloom=viewer.scene.postProcessStages.bloom;
   bloom.enabled=true;
   bloom.uniforms.glowOnly=false;
-  bloom.uniforms.contrast=150.0;
-  bloom.uniforms.brightness=-0.20;
-  bloom.uniforms.delta=1.0;
-  bloom.uniforms.sigma=3.0;
-  bloom.uniforms.stepSize=1.6;
+  bloom.uniforms.contrast=118.0;
+  bloom.uniforms.brightness=-0.34;
+  bloom.uniforms.delta=0.85;
+  bloom.uniforms.sigma=2.1;
+  bloom.uniforms.stepSize=1.2;
 
   await tileset.readyPromise?.catch?.(()=>{});
   setView(views.downtown);
@@ -213,30 +216,94 @@ const key=new THREE.PointLight(0xffae62,30,8,2);key.position.set(-1.6,2.3,1.2);k
 const rim=new THREE.DirectionalLight(0x8baaff,1.8);rim.position.set(4,5,-4);scene.add(rim);
 
 const work=new THREE.Group(),production=new THREE.Group();scene.add(work,production);work.visible=false;production.visible=false;
-const M=(c,r=.58,m=.04)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const M=(c,r=.58,m=.04)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,side:THREE.DoubleSide});
 function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
-function shell(g){
-  box(g,7,.08,6,M(0x2a211a,.7),0,.04,0);box(g,.1,3.1,6,M(0x171615,.85),-3.5,1.55,0);box(g,.1,3.1,6,M(0x171615,.85),3.5,1.55,0);
-  box(g,7,.1,.1,M(0x171615,.85),0,1.55,-3);box(g,7,.1,.1,M(0x171615,.85),0,1.55,3);box(g,7,.1,6,M(0x101010,.9),0,3.05,0);
+function shell(g,type){
+  const floor=M(type==="work"?0x2f241c:0x241d18,.64,.03);
+  const plaster=M(type==="work"?0x1b1917:0x171616,.82,.01);
+  const trim=M(0x0d0d0e,.34,.42);
+  box(g,7.6,.09,6.4,floor,0,.045,0);
+  box(g,.12,3.2,6.4,plaster,-3.8,1.6,0);
+  box(g,.12,3.2,6.4,plaster,3.8,1.6,0);
+  box(g,7.6,.10,6.4,M(0x0d0d0e,.92),0,3.18,0);
+
+  // Back wall with a real architectural window opening.
+  box(g,1.55,3.2,.12,plaster,-3.02,1.6,-3.2);
+  box(g,1.55,3.2,.12,plaster,3.02,1.6,-3.2);
+  box(g,4.5,.72,.12,plaster,0,.36,-3.2);
+  box(g,4.5,.62,.12,plaster,0,2.89,-3.2);
+  const glass=new THREE.MeshPhysicalMaterial({color:0x8ba6b6,roughness:.08,metalness:.03,transparent:true,opacity:.18,transmission:.48,thickness:.02,side:THREE.DoubleSide});
+  box(g,4.45,1.84,.025,glass,0,1.58,-3.14);
+  box(g,.055,1.9,.08,trim,-1.5,1.58,-3.11);box(g,.055,1.9,.08,trim,0,1.58,-3.11);box(g,.055,1.9,.08,trim,1.5,1.58,-3.11);
+
+  // Front wall framing prevents the scene reading like props floating in a void.
+  box(g,1.1,3.2,.12,plaster,-3.25,1.6,3.2);box(g,1.1,3.2,.12,plaster,3.25,1.6,3.2);
+
+  // Recessed ceiling lights.
+  [-2.5,0,2.5].forEach(x=>[-1.65,1.25].forEach(z=>{
+    const bulb=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.025,20),new THREE.MeshBasicMaterial({color:0xffc991}));
+    bulb.rotation.x=Math.PI/2;bulb.position.set(x,3.11,z);g.add(bulb);
+    const p=new THREE.PointLight(0xffb66b,type==="work"?5.4:4.6,4.2,2);p.position.set(x,2.95,z);g.add(p);
+  }));
+
+  // Architectural rug and low storage.
+  box(g,type==="work"?2.65:3.2,.025,type==="work"?1.65:1.9,M(type==="work"?0x3c3935:0x322a25,.92),0,.075,.55);
+  box(g,1.1,.62,.42,M(0x2b211a,.62),2.9,.34,2.25);
 }
-shell(work);shell(production);
-function desk(g,x,z,w){box(g,w,.08,.78,M(0x3c281b,.62),x,.76,z);box(g,.08,.73,.68,M(0x161616,.45,.25),x-w*.43,.365,z);box(g,.08,.73,.68,M(0x161616,.45,.25),x+w*.43,.365,z)}
-desk(work,0,-.75,2.2);desk(production,.25,-.9,2.5);
-function chair(g,x,z){box(g,.58,.1,.58,M(0x171717,.8),x,.48,z);box(g,.58,.75,.1,M(0x151515,.82),x,.89,z+.25);box(g,.08,.42,.08,M(0x111111,.4,.3),x,.25,z)}
-chair(work,0,.65);chair(production,.3,.75);
+shell(work,"work");shell(production,"production");
+
+function desk(g,x,z,w){
+  box(g,w,.085,.82,M(0x4a3120,.52,.04),x,.78,z);
+  box(g,.075,.75,.70,M(0x111214,.38,.45),x-w*.43,.39,z);
+  box(g,.075,.75,.70,M(0x111214,.38,.45),x+w*.43,.39,z);
+}
+desk(work,0,-.68,2.55);desk(production,.15,-.78,3.25);
+
+function chair(g,x,z){
+  box(g,.62,.11,.60,M(0x171719,.76,.04),x,.49,z);
+  box(g,.62,.80,.10,M(0x151517,.80,.04),x,.94,z+.25);
+  box(g,.075,.42,.075,M(0x0c0d0f,.34,.5),x,.26,z);
+}
+chair(work,0,.72);chair(production,.15,.78);
+
+// Work-room monitor, interface and lamp make the desk read immediately.
+box(work,1.18,.67,.055,M(0x101114,.30,.38),0,1.28,-1.03);
+box(work,1.04,.54,.012,new THREE.MeshBasicMaterial({color:0x172536}),0,1.28,-.995);
+box(work,.46,.09,.25,M(0x222428,.30,.52),-.78,.88,-.60);
+for(let i=0;i<4;i++){
+  const k=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.026,18),M(0xb4aaa0,.24,.75));
+  k.rotation.x=Math.PI/2;k.position.set(-.91+i*.09,.90,-.47);work.add(k);
+}
+const lampStem=new THREE.Mesh(new THREE.CylinderGeometry(.016,.016,.76,16),M(0x171719,.28,.55));lampStem.position.set(1.08,1.22,-.62);work.add(lampStem);
+const lampHead=new THREE.Mesh(new THREE.ConeGeometry(.17,.25,24,1,true),M(0x3d342b,.50,.24));lampHead.position.set(1.08,1.60,-.62);lampHead.rotation.z=Math.PI;work.add(lampHead);
+const lampGlow=new THREE.PointLight(0xffa552,12,3.0,2);lampGlow.position.set(1.08,1.52,-.50);work.add(lampGlow);
+
+// Production-room acoustic treatment and shelving.
+[-2.82,2.82].forEach(x=>[-1.7,-.45,.8].forEach(z=>box(production,.10,.78,.62,M(0x252222,.96),x,1.65,z)));
+for(let y=0;y<4;y++)box(production,1.7,.055,.30,M(0x453021,.60),-2.75,.48+y*.48,-2.63);
+box(production,1.78,2.05,.08,M(0x161515,.70),-2.75,1.23,-2.82);
 
 const clickables=[];
 const loader=new GLTFLoader();
-function place(url,parent,pos,scale=1,action=null){
-  loader.load(url,g=>{const o=g.scene;o.position.set(...pos);o.scale.setScalar(scale);o.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;if(action){n.userData.action=action;clickables.push(n)}}});parent.add(o)},undefined,()=>{});
+function placeFit(url,parent,pos,targetMax,rot=[0,0,0],action=null){
+  loader.load(url,g=>{
+    const o=g.scene;
+    const b0=new THREE.Box3().setFromObject(o),s0=new THREE.Vector3();b0.getSize(s0);
+    const max=Math.max(s0.x,s0.y,s0.z)||1;
+    o.scale.setScalar(targetMax/max);o.rotation.set(...rot);o.updateMatrixWorld(true);
+    const b=new THREE.Box3().setFromObject(o),ctr=new THREE.Vector3();b.getCenter(ctr);
+    o.position.set(pos[0]-ctr.x,pos[1]-b.min.y,pos[2]-ctr.z);
+    o.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;if(n.material){n.material.side=THREE.DoubleSide}if(action){n.userData.action=action;clickables.push(n)}}});
+    parent.add(o);
+  },undefined,()=>{});
 }
-place("https://cdn.3dassets.dev/assets/38822/v1/model.glb",work,[0,.81,-.65],1,"release");
-place("https://cdn.3dassets.dev/assets/38854/v1/model.glb",work,[-.78,.80,-.68],1);
-place("https://cdn.3dassets.dev/assets/38854/v1/model.glb",work,[.78,.80,-.68],1);
-place("https://cdn.3dassets.dev/assets/33801/v1/model.glb",work,[1.55,0,-.2],.92);
-place("https://cdn.3dassets.dev/assets/38810/v1/model.glb",production,[-2.6,.05,-2.58],1);
-place("https://cdn.3dassets.dev/assets/33805/v1/model.glb",production,[-1.55,.05,-.95],.92);
-place("https://cdn.3dassets.dev/assets/33805/v1/model.glb",production,[1.65,.05,-.95],.92);
+placeFit("https://cdn.3dassets.dev/assets/38822/v1/model.glb",work,[0,.82,-.62],.78,[0,0,0],"release");
+placeFit("https://cdn.3dassets.dev/assets/38854/v1/model.glb",work,[-.92,.82,-.68],.46,[0,.10,0]);
+placeFit("https://cdn.3dassets.dev/assets/38854/v1/model.glb",work,[.92,.82,-.68],.46,[0,-.10,0]);
+placeFit("https://cdn.3dassets.dev/assets/33801/v1/model.glb",work,[1.62,.07,-.05],1.18,[0,-.28,0]);
+placeFit("https://cdn.3dassets.dev/assets/38810/v1/model.glb",production,[-2.75,.08,-2.50],2.18,[0,.05,0]);
+placeFit("https://cdn.3dassets.dev/assets/33805/v1/model.glb",production,[-1.12,.83,-.78],.52,[0,.12,0]);
+placeFit("https://cdn.3dassets.dev/assets/33805/v1/model.glb",production,[1.42,.83,-.78],.52,[0,-.12,0]);
 
 function mpc(g,x,z,modern=false){
   box(g,.64,.1,.44,M(modern?0x17191c:0x2a2927,.34,.32),x,.86,z);
@@ -254,11 +321,24 @@ vinylNames.forEach((v,i)=>{
   const s=new THREE.Mesh(new THREE.BoxGeometry(.44,.44,.025),new THREE.MeshStandardMaterial({map:tex,roughness:.62}));s.position.set(-.84+i*.57,1.82,-2.55);production.add(s);
 });
 
-new RGBELoader().load("https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr",t=>{t.mapping=THREE.EquirectangularReflectionMapping;scene.environment=t},undefined,()=>{});
+new RGBELoader().load("https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr",t=>{
+  t.mapping=THREE.EquirectangularReflectionMapping;
+  scene.environment=t;
+  scene.background=t;
+  scene.backgroundBlurriness=.12;
+  scene.environmentIntensity=.78;
+},undefined,()=>{});
 function showInterior(room){
   work.visible=room==="work";production.visible=room==="production";
-  if(room==="work"){camera.position.set(4.7,2.35,5.3);controls.target.set(0,1.05,-.65)}
-  else{camera.position.set(4.9,2.6,5.4);controls.target.set(0,1.15,-.85)}
+  controls.minDistance=2.0;controls.maxDistance=6.8;
+  controls.minPolarAngle=.55;controls.maxPolarAngle=1.58;
+  if(room==="work"){
+    camera.position.set(3.75,1.90,4.15);
+    controls.target.set(0,1.02,-.62);
+  }else{
+    camera.position.set(4.15,2.08,4.55);
+    controls.target.set(.05,1.08,-.72);
+  }
   controls.update();
 }
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=[0,0];
