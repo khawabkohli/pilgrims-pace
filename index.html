@@ -154,7 +154,7 @@ body[data-view="work"] #roomHint{display:block}
   <button id="terraceHotspot" class="hotspot" data-label="Waterfront" aria-label="Move to water terrace"></button>
 
   <button id="back" data-label="Back" aria-label="Back">←</button>
-  <div id="roomHint">drag to look around</div>
+  <div id="roomHint">drag to look around · double tap the laptop / pc</div>
 
   <section id="release">
     <button class="close" id="closeRelease" aria-label="Close">×</button>
@@ -204,6 +204,186 @@ const DUBAI_POINTS={
   waterfront:[55.27545,25.19535],
   burj:[55.27435,25.19720]
 };
+
+/* ---------- DOWNTOWN DUBAI LANDMARK MODELS ---------- */
+function makeMapFacade(seed=1,base='#20252b',warm='#d9a15e'){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=512;
+  const x=cv.getContext('2d');
+  x.fillStyle=base;x.fillRect(0,0,256,512);
+  let s=seed*9176+31;
+  const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296};
+  const cols=9,rows=26,cw=256/cols,ch=512/rows;
+  for(let r=0;r<rows;r++)for(let q=0;q<cols;q++){
+    const on=rnd()>.38;
+    x.fillStyle=on?(rnd()>.86?'#dce6ed':warm):'#111417';
+    x.globalAlpha=on?(.50+rnd()*.42):.64;
+    x.fillRect(q*cw+5,r*ch+5,cw-10,ch-10);
+  }
+  x.globalAlpha=1;
+  const t=new THREE.CanvasTexture(cv);
+  t.encoding=THREE.sRGBEncoding;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  return t;
+}
+function mapTowerMaterial(seed=1,color=0x283039){
+  const tex=makeMapFacade(seed);
+  return new THREE.MeshStandardMaterial({
+    color,roughness:.38,metalness:.46,map:tex,
+    emissive:new THREE.Color(0x8b5d35),emissiveMap:tex,emissiveIntensity:.48
+  });
+}
+function geoWrap(obj,lngLat,alt=0){
+  const mc=maplibregl.MercatorCoordinate.fromLngLat(lngLat,alt);
+  const scale=mc.meterInMercatorCoordinateUnits();
+  const wrap=new THREE.Group();
+  wrap.matrixAutoUpdate=false;
+  wrap.matrix
+    .makeTranslation(mc.x,mc.y,mc.z)
+    .scale(new THREE.Vector3(scale,-scale,scale))
+    .multiply(new THREE.Matrix4().makeRotationX(Math.PI/2));
+  wrap.add(obj);
+  return wrap;
+}
+function modelBoxTower(w,d,h,seed,taper=.92){
+  const g=new THREE.Group(),mat=mapTowerMaterial(seed);
+  const podium=new THREE.Mesh(new THREE.BoxGeometry(w*1.08,10,d*1.08),mat);
+  podium.position.y=5;g.add(podium);
+  const sections=5;
+  let y=10;
+  for(let i=0;i<sections;i++){
+    const sh=(h-10)/sections;
+    const s=Math.pow(taper,i);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w*s,sh,d*s),mat);
+    m.position.y=y+sh/2;m.castShadow=true;m.receiveShadow=true;g.add(m);y+=sh;
+  }
+  return g;
+}
+function modelRoundedTower(r,h,seed){
+  const g=new THREE.Group(),mat=mapTowerMaterial(seed,0x313a43);
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(r*.78,r,h,18),mat);
+  body.position.y=h/2;g.add(body);
+  const crown=new THREE.Mesh(new THREE.CylinderGeometry(r*.48,r*.78,18,18),mat);
+  crown.position.y=h+9;g.add(crown);
+  return g;
+}
+function modelSkyView(){
+  const g=new THREE.Group(),mat=mapTowerMaterial(44,0x2d3540);
+  const left=modelBoxTower(36,28,255,41,.965);left.position.x=-31;g.add(left);
+  const right=modelBoxTower(38,30,240,42,.965);right.position.x=31;g.add(right);
+  const bridge=new THREE.Mesh(new THREE.BoxGeometry(78,18,22),mat);
+  bridge.position.set(0,190,0);g.add(bridge);
+  const crown=new THREE.Mesh(new THREE.BoxGeometry(76,7,18),new THREE.MeshStandardMaterial({
+    color:0xa18458,roughness:.32,metalness:.72,emissive:0x3b2512,emissiveIntensity:.25
+  }));
+  crown.position.set(0,203,0);g.add(crown);
+  return g;
+}
+function modelBurjFallback(){
+  const g=new THREE.Group();
+  const silver=new THREE.MeshStandardMaterial({color:0x8d9daa,roughness:.28,metalness:.72});
+  const glass=mapTowerMaterial(93,0x66798a);
+  const tiers=[
+    [0,95,48],[95,92,44],[187,88,40],[275,82,35],
+    [357,74,31],[431,68,27],[499,60,23],[559,52,20],[611,43,17],[654,38,14]
+  ];
+  tiers.forEach((t,i)=>{
+    const h=t[1],r=t[2];
+    const core=new THREE.Mesh(new THREE.CylinderGeometry(r*.46,r*.58,h,18),glass);
+    core.position.y=t[0]+h/2;g.add(core);
+    for(let a=0;a<3;a++){
+      const wing=new THREE.Mesh(new THREE.BoxGeometry(r*.95,h*.94,r*.25),glass);
+      wing.position.set(Math.cos(a*Math.PI*2/3)*r*.29,t[0]+h*.47,Math.sin(a*Math.PI*2/3)*r*.29);
+      wing.rotation.y=-a*Math.PI*2/3;g.add(wing);
+    }
+  });
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(7,12,92,14),silver);
+  top.position.y=700;g.add(top);
+  const spire=new THREE.Mesh(new THREE.CylinderGeometry(1.4,4.8,115,12),silver);
+  spire.position.y=803;g.add(spire);
+  return g;
+}
+function normalizeBurjModel(root){
+  root.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(root);
+  const sz=new THREE.Vector3();b.getSize(sz);
+  const k=828/Math.max(sz.y,1);
+  root.scale.multiplyScalar(k);
+  root.updateMatrixWorld(true);
+  const bb=new THREE.Box3().setFromObject(root);
+  const ctr=new THREE.Vector3();bb.getCenter(ctr);
+  root.position.x-=ctr.x;root.position.z-=ctr.z;root.position.y-=bb.min.y;
+  root.traverse(n=>{
+    if(n.isMesh&&n.material){
+      n.castShadow=true;n.receiveShadow=true;
+      const mats=Array.isArray(n.material)?n.material:[n.material];
+      mats.forEach(m=>{
+        m.transparent=false;m.opacity=1;m.depthWrite=true;
+        if('roughness' in m)m.roughness=Math.min(.42,m.roughness??.42);
+        if('metalness' in m)m.metalness=Math.max(.18,m.metalness??.18);
+        m.needsUpdate=true;
+      });
+    }
+  });
+}
+function addDubaiLandmarksLayer(map){
+  const customLayer={
+    id:'downtown-dubai-landmarks',
+    type:'custom',
+    renderingMode:'3d',
+    onAdd(map,gl){
+      this.map=map;
+      this.scene=new THREE.Scene();
+      this.camera=new THREE.Camera();
+      this.renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl,antialias:true});
+      this.renderer.autoClear=false;
+      this.renderer.outputEncoding=THREE.sRGBEncoding;
+      this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure=.82;
+
+      this.scene.add(new THREE.HemisphereLight(0x9eb3d1,0x17110d,1.05));
+      const sun=new THREE.DirectionalLight(0xffd2a4,1.9);
+      sun.position.set(-350,700,450);this.scene.add(sun);
+      const rim=new THREE.DirectionalLight(0x789bd0,.78);
+      rim.position.set(450,350,-500);this.scene.add(rim);
+
+      // Burj Khalifa: detailed local fallback immediately, replaced by the real GLB when loaded.
+      const burjHolder=new THREE.Group();
+      const fallback=modelBurjFallback();burjHolder.add(fallback);
+      this.scene.add(geoWrap(burjHolder,[55.27435,25.19720],0));
+
+      const gltf=new THREE.GLTFLoader();
+      gltf.load(
+        'https://cdn.jsdelivr.net/gh/hszzhua2/world-architecture-atlas-3d@clean-main/apps/geolibre-desktop/public/models/burj-khalifa.glb',
+        data=>{
+          normalizeBurjModel(data.scene);
+          burjHolder.clear();
+          burjHolder.add(data.scene);
+          map.triggerRepaint();
+        },
+        undefined,
+        ()=>{}
+      );
+
+      // Recognisable Downtown Dubai massing, in real geographic positions.
+      this.scene.add(geoWrap(modelBoxTower(42,32,302,11,.96),[55.27905,25.19365],0)); // Address Downtown
+      this.scene.add(geoWrap(modelSkyView(),[55.26985,25.20155],0));                  // Address Sky View
+      this.scene.add(geoWrap(modelBoxTower(35,27,272,22,.96),[55.27130,25.20055],0)); // Burj Vista 1
+      this.scene.add(geoWrap(modelBoxTower(32,25,254,23,.96),[55.27175,25.20015],0)); // Burj Vista 2
+      this.scene.add(geoWrap(modelBoxTower(36,30,280,31,.975),[55.28025,25.19465],0)); // Boulevard Point
+      this.scene.add(geoWrap(modelRoundedTower(24,288,34),[55.27215,25.19180],0));     // Opera Grand
+      this.scene.add(geoWrap(modelRoundedTower(21,230,36),[55.27685,25.19095],0));     // Downtown tower
+      this.scene.add(geoWrap(modelBoxTower(46,31,205,38,.97),[55.28100,25.19700],0));  // Dubai Mall edge tower
+    },
+    render(gl,args){
+      const m=new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);
+      this.camera.projectionMatrix=m;
+      this.renderer.resetState();
+      this.renderer.render(this.scene,this.camera);
+      this.map.triggerRepaint();
+    }
+  };
+  try{ map.addLayer(customLayer); }catch(e){ console.warn('Dubai landmark layer',e); }
+}
 
 function initDubaiMap(){
   if(typeof maplibregl==='undefined') return;
@@ -286,9 +466,12 @@ function initDubaiMap(){
               15.1,['coalesce',['to-number',['get','render_height']],0]
             ],
             'fill-extrusion-base':['coalesce',['to-number',['get','render_min_height']],0],
-            'fill-extrusion-opacity':.92
+            'fill-extrusion-opacity':1,
+            'fill-extrusion-vertical-gradient':true
           }
         });
+
+        addDubaiLandmarksLayer(dubaiMap);
       }catch(e){ console.warn('Map detail layer warning',e); }
 
       mapReady=true;
@@ -1073,20 +1256,66 @@ function roomLighting(parent,warm=.7){
 function rebuildWorkRoom(){
   work.clear();
   buildRoom(work,{w:7.4,d:5.0,h:3.25});
-  roomLighting(work,.6);
+  roomLighting(work,.68);
 
-  heroLoader.load('https://cdn.3dassets.dev/assets/38878/v1/model.glb',g=>{
-    const room=normalizeAsset(g.scene,.88);
-    room.position.z=-.28;
-    work.add(room);
+  // One workstation only: walnut desk, one ultrawide display, laptop, nearfields.
+  luxuryDesk(work,0,-.62,3.20);
+  luxuryChair(work,0,.86);
 
-    // one hero laptop at the front, dedicated to Pilgrim's Pace
-    addMacbook(work,0,.88,1.18);
-    laptopHit.position.set(0,1.08,1.15);
-    work.add(laptopHit);
-  },undefined,e=>console.warn('Work room model fallback',e));
+  // Large window / dark Dubai skyline behind the desk.
+  box(work,4.80,1.82,.045,MAT.blackGlass,0,1.68,-2.42,false);
+  box(work,4.94,.055,.08,MAT.aluminum,0,.78,-2.37,false);
+  box(work,4.94,.055,.08,MAT.aluminum,0,2.58,-2.37,false);
+  for(const x of [-1.60,-.82,0,.82,1.60]) box(work,.035,1.78,.055,MAT.aluminum,x,1.68,-2.36,false);
+
+  const roomSky=new THREE.Group();roomSky.position.set(0,.14,-2.78);work.add(roomSky);
+  const hs=[1.20,1.78,2.34,1.55,2.05,1.40,2.50,1.88,1.28];
+  hs.forEach((h,i)=>{
+    const xx=-2.30+i*.58;
+    const mat=facade(120+i,0x25282d);
+    box(roomSky,.42,h,.48,mat,xx,h/2,0,false);
+  });
+
+  // Single ultrawide monitor connected to the laptop.
+  const monitorFrame=box(work,1.46,.68,.045,MAT.dark,0,1.33,-1.03,false);
+  const monitorTex=laptopScreenTexture();
+  const monitorScreen=new THREE.Mesh(
+    new THREE.PlaneGeometry(1.35,.57),
+    new THREE.MeshBasicMaterial({map:monitorTex,toneMapped:false})
+  );
+  monitorScreen.position.set(0,1.33,-1.003);work.add(monitorScreen);
+  box(work,.075,.26,.075,MAT.aluminum,0,1.00,-.98,false);
+  box(work,.36,.025,.22,MAT.aluminum,0,.875,-.98,false);
+
+  speaker(work,-1.26,1.08,-.91);
+  speaker(work,1.26,1.08,-.91);
+
+  // Laptop physically sits on the desk, not in front of it.
+  addMacbook(work,0,.895,-.40);
+  laptopHit.position.set(0,1.08,-.48);
+  work.add(laptopHit);
+
+  // Small interface + notebook keep it believable without turning it into an electronics store.
+  box(work,.34,.055,.24,MAT.dark,-.80,.925,-.31,false);
+  box(work,.29,.018,.21,new THREE.MeshStandardMaterial({color:0x2d211a,roughness:.90}),.88,.924,-.28,false);
+  const pen=box(work,.22,.009,.012,new THREE.MeshStandardMaterial({color:0xb97b32,roughness:.58}),.89,.944,-.18,false);
+  pen.rotation.y=.16;
+
+  // One floor lamp and one side cabinet.
+  box(work,1.05,.54,.38,MAT.darkWalnut,2.78,.31,1.48,false);
+  box(work,.96,.020,.35,MAT.brass,2.78,.59,1.48,false);
+  const ls=new THREE.Mesh(new THREE.CylinderGeometry(.016,.021,1.46,14),MAT.brass);
+  ls.position.set(2.72,.78,-.10);work.add(ls);
+  const shade=new THREE.Mesh(
+    new THREE.ConeGeometry(.20,.31,28,1,true),
+    new THREE.MeshStandardMaterial({color:0xe6d4b8,roughness:.88,side:THREE.DoubleSide})
+  );
+  shade.position.set(2.72,1.55,-.10);shade.rotation.x=Math.PI;work.add(shade);
+  const glow=new THREE.PointLight(0xffbd79,2.8,4.2,2);
+  glow.position.set(2.72,1.40,-.02);work.add(glow);
+
+  contactShadow(work,0,-.45,3.65,1.45,.17);
 }
-
 function rebuildProductionRoom(){
   production.clear();
   buildRoom(production,{w:8.4,d:5.6,h:3.25});
@@ -1173,7 +1402,7 @@ new THREE.RGBELoader().load(
 const viewConfig={
   city:{pos:new THREE.Vector3(24,7.2,19),target:new THREE.Vector3(-1.5,4.3,-1.2),min:10,max:34},
   terrace:{pos:new THREE.Vector3(-14,3.8,10),target:new THREE.Vector3(-5,1.25,-1.2),min:5,max:20},
-  work:{pos:new THREE.Vector3(4.35,2.05,4.55),target:new THREE.Vector3(0,1.00,-.10),min:2.4,max:7.2},
+  work:{pos:new THREE.Vector3(4.20,1.98,4.45),target:new THREE.Vector3(0,1.08,-.58),min:2.5,max:7.0},
   production:{pos:new THREE.Vector3(4.85,2.12,5.35),target:new THREE.Vector3(0,1.02,-.48),min:2.8,max:8.2}
 };
 function setCamera(name){
