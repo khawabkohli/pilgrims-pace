@@ -69,34 +69,73 @@ const TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjdhdHlQaEp0cFdWQ0
 Cesium.Ion.defaultAccessToken=TOKEN;
 
 const viewer=new Cesium.Viewer("cesium",{
-  animation:false,timeline:false,geocoder:false,baseLayerPicker:false,homeButton:false,
-  sceneModePicker:false,navigationHelpButton:false,infoBox:false,selectionIndicator:false,
-  fullscreenButton:false,shouldAnimate:true,terrainProvider:new Cesium.EllipsoidTerrainProvider()
+  animation:false,
+  timeline:false,
+  geocoder:Cesium.IonGeocodeProviderType.GOOGLE,
+  globe:false,
+  baseLayerPicker:false,
+  homeButton:false,
+  sceneModePicker:false,
+  navigationHelpButton:false,
+  infoBox:false,
+  selectionIndicator:false,
+  fullscreenButton:false,
+  shouldAnimate:true
 });
-viewer.scene.globe.show=false;
-viewer.scene.skyAtmosphere.show=true;
+
+viewer.scene.skyAtmosphere.show=false;
 viewer.scene.fog.enabled=true;
 viewer.scene.highDynamicRange=true;
 viewer.scene.postProcessStages.fxaa.enabled=true;
 viewer.scene.backgroundColor=Cesium.Color.BLACK;
-viewer.scene.light=new Cesium.DirectionalLight({direction:new Cesium.Cartesian3(-0.35,-0.28,-0.89),color:new Cesium.Color(1,.70,.42,1),intensity:1.45});
-
-let tileset;
-try{
-  tileset=await Cesium.createGooglePhotorealistic3DTileset({onlyUsingWithGoogleGeocoder:true});
-  viewer.scene.primitives.add(tileset);
-}catch(e){console.error(e);}
 
 const views={
   downtown:{lon:55.2744,lat:25.1972,h:1250,heading:28,pitch:-36},
   drive:{lon:55.2708,lat:25.1936,h:190,heading:52,pitch:-22},
   fountain:{lon:55.2752,lat:25.1955,h:165,heading:6,pitch:-28}
 };
-function fly(v,d=2.1){
-  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
-    orientation:{heading:Cesium.Math.toRadians(v.heading),pitch:Cesium.Math.toRadians(v.pitch),roll:0},duration:d});
+
+function setView(v){
+  viewer.camera.setView({
+    destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
+    orientation:{
+      heading:Cesium.Math.toRadians(v.heading),
+      pitch:Cesium.Math.toRadians(v.pitch),
+      roll:0
+    }
+  });
 }
-fly(views.downtown,0);
+
+function fly(v,d=2.1){
+  viewer.camera.flyTo({
+    destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
+    orientation:{
+      heading:Cesium.Math.toRadians(v.heading),
+      pitch:Cesium.Math.toRadians(v.pitch),
+      roll:0
+    },
+    duration:d
+  });
+}
+
+/* Put the camera over Downtown BEFORE requesting the tiles.
+   This avoids Cesium's default orbital view if Google tiles take a moment. */
+setView(views.downtown);
+
+let tileset;
+try{
+  tileset=await Cesium.createGooglePhotorealistic3DTileset();
+  tileset.maximumScreenSpaceError=8;
+  viewer.scene.primitives.add(tileset);
+  await tileset.readyPromise?.catch?.(()=>{});
+  setView(views.downtown);
+}catch(e){
+  console.error("Google Photorealistic 3D Tiles failed:",e);
+  const warning=document.createElement("div");
+  warning.style.cssText="position:absolute;z-index:70;left:50%;top:50%;transform:translate(-50%,-50%);max-width:520px;padding:16px 18px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(0,0,0,.78);color:white;font:12px/1.55 Arial;text-align:center;backdrop-filter:blur(12px)";
+  warning.textContent="Dubai 3D tiles could not load. Check that Google Photorealistic 3D Tiles are enabled for this Cesium ion account and that this token has geocode permission.";
+  document.body.appendChild(warning);
+}
 
 const points=[
   {room:"drive",lon:55.2708,lat:25.1936,h:34},
