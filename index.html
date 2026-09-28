@@ -506,7 +506,23 @@ function initDubaiMap(){
                 'il primo',
                 'il primo tower'
               ]]
-            ]]
+            ]],
+            ['!', ['within', {
+              type:'Polygon',
+              coordinates:[[[55.27345,25.19635],[55.27525,25.19635],[55.27525,25.19805],[55.27345,25.19805],[55.27345,25.19635]]]
+            }]],
+            ['!', ['within', {
+              type:'Polygon',
+              coordinates:[[[55.27805,25.19270],[55.28000,25.19270],[55.28000,25.19455],[55.27805,25.19455],[55.27805,25.19270]]]
+            }]],
+            ['!', ['within', {
+              type:'Polygon',
+              coordinates:[[[55.27205,25.19230],[55.27360,25.19230],[55.27360,25.19385],[55.27205,25.19385],[55.27205,25.19230]]]
+            }]],
+            ['!', ['within', {
+              type:'Polygon',
+              coordinates:[[[55.27080,25.19020],[55.27240,25.19020],[55.27240,25.19190],[55.27080,25.19190],[55.27080,25.19020]]]
+            }]]
           ],
           paint:{
             'fill-extrusion-color':[
@@ -532,47 +548,6 @@ function initDubaiMap(){
 
         addDowntownLandmarksLayer(dubaiMap);
 
-        // Remove the older map-extrusion versions sitting directly underneath
-        // the replacement landmark models. We query only tiny areas around each
-        // landmark so the rest of the skyline remains untouched.
-        const replacementPoints=[
-          [55.27435,25.19720], // Burj Khalifa
-          [55.27902,25.19367], // Address Downtown
-          [55.27280,25.19305], // Burj Crown
-          [55.27160,25.19105]  // Il Primo
-        ];
-        const hiddenIds=[];
-        replacementPoints.forEach(ll=>{
-          const p=dubaiMap.project(ll);
-          const hits=dubaiMap.queryRenderedFeatures(
-            [[p.x-8,p.y-8],[p.x+8,p.y+8]],
-            {layers:['dubai-3d-buildings']}
-          );
-          hits.forEach(feat=>{
-            if(feat && feat.id!=null && !hiddenIds.includes(feat.id)) hiddenIds.push(feat.id);
-          });
-        });
-        if(hiddenIds.length){
-          dubaiMap.setFilter('dubai-3d-buildings',[
-            'all',
-            ['!=',['get','hide_3d'],true],
-            ['!',[
-              'in',
-              ['downcase',['coalesce',['get','name:en'],['get','name'],'']],
-              ['literal',[
-                'burj khalifa',
-                'address downtown',
-                'the address downtown',
-                'the address downtown dubai',
-                'burj crown',
-                'burj crown emaar',
-                'il primo',
-                'il primo tower'
-              ]]
-            ]],
-            ['!', ['in',['id'],['literal',hiddenIds]]]
-          ]);
-        }
       }catch(e){ console.warn('Map detail layer warning',e); }
 
       mapReady=true;
