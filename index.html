@@ -1,308 +1,208 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pilgrim's Pace</title>
-
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Cesium.js"></script>
-  <link
-    href="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Widgets/widgets.css"
-    rel="stylesheet"
-  />
-
-  <style>
-    html, body, #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: #050505;
-    }
-
-    .cesium-widget-credits {
-      display: block !important;
-    }
-
-    #backBtn {
-      position: absolute;
-      left: 18px;
-      bottom: 18px;
-      z-index: 20;
-      width: 50px;
-      height: 50px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.35);
-      background: rgba(0,0,0,.35);
-      color: white;
-      font-size: 22px;
-      cursor: pointer;
-      display: none;
-    }
-
-    #roomPanel {
-      position: absolute;
-      right: 18px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: min(360px, calc(100vw - 36px));
-      padding: 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(5,5,5,.78);
-      backdrop-filter: blur(18px);
-      color: white;
-      z-index: 30;
-      display: none;
-    }
-
-    #roomPanel img {
-      width: 100%;
-      aspect-ratio: 1;
-      object-fit: cover;
-      border-radius: 12px;
-      display: block;
-      margin-bottom: 12px;
-    }
-
-    .services {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .service {
-      min-height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.03);
-      color: white;
-      text-decoration: none;
-      font-size: 12px;
-    }
-
-    .hotspot {
-      position: absolute;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.7);
-      background: rgba(0,0,0,.22);
-      color: white;
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      z-index: 15;
-      backdrop-filter: blur(5px);
-    }
-
-    .hotspot.gold {
-      border-color: rgba(216,179,110,.95);
-      color: #f3d7a3;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pilgrim's Pace</title>
+<meta name="theme-color" content="#050505">
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<style>
+:root{--fg:#f2eee6;--muted:rgba(242,238,230,.62);--line:rgba(255,255,255,.16);--glass:rgba(6,6,5,.78);--gold:#d8b36e;--safe:18px}
+*{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#050505;color:var(--fg);font-family:Arial,Helvetica,sans-serif}button,a{font:inherit;color:inherit}
+#app{position:relative;height:100dvh;min-height:560px}
+#cesium,#roomCanvas{position:absolute;inset:0;width:100%;height:100%}
+#cesium{z-index:1;filter:brightness(.47) contrast(1.16) saturate(.84) sepia(.08)}
+#roomCanvas{z-index:2;display:none;touch-action:none}
+.cesium-viewer-bottom,.cesium-viewer-toolbar,.cesium-viewer-animationContainer,.cesium-viewer-timelineContainer,.cesium-viewer-fullscreenContainer{display:none!important}
+.cesium-widget-credits{font-size:9px!important;opacity:.5}
+#grade{position:absolute;z-index:4;inset:0;pointer-events:none;background:
+radial-gradient(circle at 55% 39%,rgba(255,173,76,.15),transparent 18%),
+radial-gradient(circle at 45% 67%,rgba(255,104,36,.08),transparent 24%),
+linear-gradient(180deg,rgba(0,6,20,.18),transparent 40%,rgba(0,0,0,.28))}
+#veil{position:absolute;z-index:45;inset:0;background:#050505;opacity:0;pointer-events:none;transition:opacity .3s ease}#veil.on{opacity:1}
+.marker{position:absolute;z-index:20;width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.78);background:rgba(0,0,0,.28);backdrop-filter:blur(6px);display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 28px rgba(0,0,0,.35);transition:transform .18s ease,opacity .22s ease}
+.marker::before{content:"→";font-size:24px}.marker.gold{border-color:#d8b36e;color:#f0d39a}.marker:hover{transform:scale(1.06)}
+#back{position:absolute;z-index:31;left:max(var(--safe),env(safe-area-inset-left));bottom:max(var(--safe),env(safe-area-inset-bottom));width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.42);background:rgba(0,0,0,.34);backdrop-filter:blur(12px);display:none;place-items:center;cursor:pointer;font-size:24px}
+body:not([data-room="downtown"]) #back{display:grid}
+#hint{position:absolute;z-index:25;left:50%;bottom:max(var(--safe),env(safe-area-inset-bottom));transform:translateX(-50%);padding:8px 11px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(0,0,0,.30);backdrop-filter:blur(10px);color:rgba(255,255,255,.55);font-size:8px;letter-spacing:.14em;text-transform:uppercase;display:none}
+body[data-room="work"] #hint,body[data-room="production"] #hint{display:block}
+#release{position:absolute;z-index:35;right:clamp(14px,3vw,48px);top:50%;transform:translateY(-50%);display:none;width:min(360px,calc(100vw - 28px));padding:13px;border-radius:20px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(22px);box-shadow:0 25px 72px rgba(0,0,0,.54)}
+#release.open{display:block}
+#release img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px;margin-bottom:12px;box-shadow:0 16px 42px rgba(0,0,0,.42)}
+#release .close{position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.38);cursor:pointer;font-size:19px}
+.services{display:grid;grid-template-columns:1fr 1fr;gap:8px}.service{min-height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid rgba(255,255,255,.13);border-radius:12px;text-decoration:none;background:rgba(255,255,255,.025);font-size:12px}.service span:last-child{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+#loader{position:absolute;z-index:60;inset:0;background:#050505;display:grid;place-items:center;transition:opacity .4s ease}#loader.hide{opacity:0;pointer-events:none}.track{width:min(220px,54vw);height:1px;background:rgba(255,255,255,.13);overflow:hidden}.track i{display:block;height:100%;width:65%;background:var(--gold);animation:load 1.1s ease-in-out infinite alternate}@keyframes load{to{width:100%}}
+@media(max-width:780px){#release{left:12px;right:12px;top:auto;bottom:78px;transform:none;width:auto;max-height:73vh;overflow:auto}.services{grid-template-columns:1fr}.marker{width:44px;height:44px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/"}}</script>
 </head>
-<body>
-  <div id="cesiumContainer"></div>
-
-  <button id="backBtn">←</button>
-
-  <div id="roomPanel">
-    <img src="YOUR_COVER_ART_URL_HERE" alt="Pilgrim's Pace cover" />
+<body data-room="downtown">
+<div id="app">
+  <div id="cesium"></div>
+  <canvas id="roomCanvas"></canvas>
+  <div id="grade"></div>
+  <div id="veil"></div>
+  <button id="back" aria-label="Back">←</button>
+  <div id="hint">drag to look around · tap the laptop</div>
+  <section id="release">
+    <button class="close" id="closeRelease">×</button>
+    <img src="https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg" alt="Pilgrim's Pace cover">
     <div class="services">
-      <a class="service" href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz?si=8Lk2luENT92Kbbb_65MvcQ&utm_source=copy-link" target="_blank">Spotify</a>
-      <a class="service" href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank">Apple</a>
-      <a class="service" href="https://music.youtube.com/watch?v=ROwIV9T7IIc&si=0AdnKWGgAymDhcqf" target="_blank">YouTube</a>
-      <a class="service" href="https://music.amazon.com.au/albums/B0HKZ3QZ2M?marketplaceId=A39IBJ37TRP1C6&musicTerritory=AU&ref=dm_sh_pVFmZyiynyFVsL5KDXfGFj46I" target="_blank">Amazon</a>
-      <a class="service" href="https://tidal.com/album/564211468/u" target="_blank">TIDAL</a>
+      <a class="service" href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz?si=8Lk2luENT92Kbbb_65MvcQ&utm_source=copy-link" target="_blank"><span>Spotify</span><span>Listen</span></a>
+      <a class="service" href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank"><span>Apple Music</span><span>Listen</span></a>
+      <a class="service" href="https://music.youtube.com/watch?v=ROwIV9T7IIc&si=0AdnKWGgAymDhcqf" target="_blank"><span>YouTube Music</span><span>Listen</span></a>
+      <a class="service" href="https://music.amazon.com.au/albums/B0HKZ3QZ2M?marketplaceId=A39IBJ37TRP1C6&musicTerritory=AU&ref=dm_sh_pVFmZyiynyFVsL5KDXfGFj46I" target="_blank"><span>Amazon Music</span><span>Listen</span></a>
+      <a class="service" href="https://tidal.com/album/564211468/u" target="_blank"><span>TIDAL</span><span>Listen</span></a>
     </div>
-  </div>
+  </section>
+  <div id="loader"><div class="track"><i></i></div></div>
+</div>
 
-  <script type="module">
-    Cesium.Ion.defaultAccessToken = "PASTE_YOUR_TOKEN_HERE";
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 
-    const viewer = new Cesium.Viewer("cesiumContainer", {
-      animation: false,
-      timeline: false,
-      geocoder: false,
-      baseLayerPicker: false,
-      homeButton: false,
-      sceneModePicker: false,
-      navigationHelpButton: false,
-      infoBox: false,
-      selectionIndicator: false,
-      fullscreenButton: false,
-      shouldAnimate: true
-    });
+const TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjdhdHlQaEp0cFdWQ0hYLXIiLCJqdGkiOiJiYmI3ZGMyNC1mYWNiLTQ1MmItOWE5My0wMWMxOGM0MWY4MmYiLCJpZCI6NTEwMTY2LCJzdWIiOiJ0d2l6enlzbGltZSIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJQaWxncmltcyBQYWNlIFdlYnNpdGUiLCJpYXQiOjE3OTA1NzQ5NTN9.5MpS4ozYIrkSbBfBFekmqvmPEokXap0eVnBVzC6nDF8";
+Cesium.Ion.defaultAccessToken=TOKEN;
 
-    viewer.scene.globe.show = false;
-    viewer.scene.skyAtmosphere.show = true;
-    viewer.scene.fog.enabled = true;
-    viewer.scene.postProcessStages.fxaa.enabled = true;
-    viewer.scene.highDynamicRange = true;
+const viewer=new Cesium.Viewer("cesium",{
+  animation:false,timeline:false,geocoder:false,baseLayerPicker:false,homeButton:false,
+  sceneModePicker:false,navigationHelpButton:false,infoBox:false,selectionIndicator:false,
+  fullscreenButton:false,shouldAnimate:true,terrainProvider:new Cesium.EllipsoidTerrainProvider()
+});
+viewer.scene.globe.show=false;
+viewer.scene.skyAtmosphere.show=true;
+viewer.scene.fog.enabled=true;
+viewer.scene.highDynamicRange=true;
+viewer.scene.postProcessStages.fxaa.enabled=true;
+viewer.scene.backgroundColor=Cesium.Color.BLACK;
+viewer.scene.light=new Cesium.DirectionalLight({direction:new Cesium.Cartesian3(-0.35,-0.28,-0.89),color:new Cesium.Color(1,.70,.42,1),intensity:1.45});
 
-    const tileset = await Cesium.createGooglePhotorealistic3DTileset();
-    viewer.scene.primitives.add(tileset);
+let tileset;
+try{
+  tileset=await Cesium.createGooglePhotorealistic3DTileset({onlyUsingWithGoogleGeocoder:true});
+  viewer.scene.primitives.add(tileset);
+}catch(e){console.error(e);}
 
-    viewer.clock.currentTime = Cesium.JulianDate.now();
+const views={
+  downtown:{lon:55.2744,lat:25.1972,h:1250,heading:28,pitch:-36},
+  drive:{lon:55.2708,lat:25.1936,h:190,heading:52,pitch:-22},
+  fountain:{lon:55.2752,lat:25.1955,h:165,heading:6,pitch:-28}
+};
+function fly(v,d=2.1){
+  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(v.lon,v.lat,v.h),
+    orientation:{heading:Cesium.Math.toRadians(v.heading),pitch:Cesium.Math.toRadians(v.pitch),roll:0},duration:d});
+}
+fly(views.downtown,0);
 
-    // Dubai Downtown / Burj Khalifa start
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(55.2744, 25.1972, 1400),
-      orientation: {
-        heading: Cesium.Math.toRadians(25),
-        pitch: Cesium.Math.toRadians(-38),
-        roll: 0
-      },
-      duration: 2.5
-    });
+const points=[
+  {room:"drive",lon:55.2708,lat:25.1936,h:34},
+  {room:"fountain",lon:55.2752,lat:25.1955,h:24},
+  {room:"work",lon:55.2780,lat:25.2003,h:38,gold:true},
+  {room:"production",lon:55.2702,lat:25.2004,h:38,gold:true}
+];
+const markerEls=[];
+for(const p of points){
+  const el=document.createElement("button");
+  el.className="marker"+(p.gold?" gold":"");
+  el.setAttribute("aria-label","Open "+p.room);
+  document.body.appendChild(el);
+  el.addEventListener("click",()=>openRoom(p.room));
+  markerEls.push({el,p,pos:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,p.h)});
+}
+viewer.scene.postRender.addEventListener(()=>{
+  for(const m of markerEls){
+    const c=Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene,m.pos);
+    if(c){m.el.style.display="grid";m.el.style.left=(c.x-m.el.offsetWidth/2)+"px";m.el.style.top=(c.y-m.el.offsetHeight/2)+"px"}else m.el.style.display="none";
+  }
+});
+function hideMarkers(v){markerEls.forEach(m=>{m.el.style.opacity=v?"0":"1";m.el.style.pointerEvents=v?"none":"auto"})}
 
-    // Hotspots
-    const hotspots = [
-      {
-        name: "Drive",
-        lon: 55.2708,
-        lat: 25.1936,
-        height: 35,
-        room: "drive"
-      },
-      {
-        name: "Fountain",
-        lon: 55.2752,
-        lat: 25.1955,
-        height: 25,
-        room: "fountain"
-      },
-      {
-        name: "Work",
-        lon: 55.2780,
-        lat: 25.2003,
-        height: 35,
-        room: "work",
-        gold: true
-      },
-      {
-        name: "Production",
-        lon: 55.2702,
-        lat: 25.2004,
-        height: 35,
-        room: "production",
-        gold: true
-      }
-    ];
+const canvas=document.getElementById("roomCanvas"),mapEl=document.getElementById("cesium"),grade=document.getElementById("grade");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight,false);
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x070707);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.03,80);
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.enablePan=false;controls.maxPolarAngle=Math.PI*.57;
+scene.add(new THREE.HemisphereLight(0x91a7d5,0x160a04,.9));
+const key=new THREE.PointLight(0xffae62,30,8,2);key.position.set(-1.6,2.3,1.2);key.castShadow=true;scene.add(key);
+const rim=new THREE.DirectionalLight(0x8baaff,1.8);rim.position.set(4,5,-4);scene.add(rim);
 
-    const container = document.body;
-    const hotspotEls = [];
-    const backBtn = document.getElementById("backBtn");
-    const roomPanel = document.getElementById("roomPanel");
+const work=new THREE.Group(),production=new THREE.Group();scene.add(work,production);work.visible=false;production.visible=false;
+const M=(c,r=.58,m=.04)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function shell(g){
+  box(g,7,.08,6,M(0x2a211a,.7),0,.04,0);box(g,.1,3.1,6,M(0x171615,.85),-3.5,1.55,0);box(g,.1,3.1,6,M(0x171615,.85),3.5,1.55,0);
+  box(g,7,.1,.1,M(0x171615,.85),0,1.55,-3);box(g,7,.1,.1,M(0x171615,.85),0,1.55,3);box(g,7,.1,6,M(0x101010,.9),0,3.05,0);
+}
+shell(work);shell(production);
+function desk(g,x,z,w){box(g,w,.08,.78,M(0x3c281b,.62),x,.76,z);box(g,.08,.73,.68,M(0x161616,.45,.25),x-w*.43,.365,z);box(g,.08,.73,.68,M(0x161616,.45,.25),x+w*.43,.365,z)}
+desk(work,0,-.75,2.2);desk(production,.25,-.9,2.5);
+function chair(g,x,z){box(g,.58,.1,.58,M(0x171717,.8),x,.48,z);box(g,.58,.75,.1,M(0x151515,.82),x,.89,z+.25);box(g,.08,.42,.08,M(0x111111,.4,.3),x,.25,z)}
+chair(work,0,.65);chair(production,.3,.75);
 
-    hotspots.forEach(h => {
-      const el = document.createElement("button");
-      el.className = "hotspot" + (h.gold ? " gold" : "");
-      el.textContent = "→";
-      el.title = h.name;
-      el.onclick = () => openRoom(h.room);
-      container.appendChild(el);
-      hotspotEls.push({
-        el,
-        position: Cesium.Cartesian3.fromDegrees(h.lon, h.lat, h.height),
-        room: h.room
-      });
-    });
+const clickables=[];
+const loader=new GLTFLoader();
+function place(url,parent,pos,scale=1,action=null){
+  loader.load(url,g=>{const o=g.scene;o.position.set(...pos);o.scale.setScalar(scale);o.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;if(action){n.userData.action=action;clickables.push(n)}}});parent.add(o)},undefined,()=>{});
+}
+place("https://cdn.3dassets.dev/assets/38822/v1/model.glb",work,[0,.81,-.65],1,"release");
+place("https://cdn.3dassets.dev/assets/38854/v1/model.glb",work,[-.78,.80,-.68],1);
+place("https://cdn.3dassets.dev/assets/38854/v1/model.glb",work,[.78,.80,-.68],1);
+place("https://cdn.3dassets.dev/assets/33801/v1/model.glb",work,[1.55,0,-.2],.92);
+place("https://cdn.3dassets.dev/assets/38810/v1/model.glb",production,[-2.6,.05,-2.58],1);
+place("https://cdn.3dassets.dev/assets/33805/v1/model.glb",production,[-1.55,.05,-.95],.92);
+place("https://cdn.3dassets.dev/assets/33805/v1/model.glb",production,[1.65,.05,-.95],.92);
 
-    function updateHotspots() {
-      hotspotEls.forEach(h => {
-        const canvasPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
-          viewer.scene,
-          h.position
-        );
+function mpc(g,x,z,modern=false){
+  box(g,.64,.1,.44,M(modern?0x17191c:0x2a2927,.34,.32),x,.86,z);
+  for(let r=0;r<4;r++)for(let c=0;c<4;c++)box(g,.064,.015,.055,M(0x45413c,.55,.12),x-.2+c*.073,.925,z-.03+r*.063);
+  box(g,.20,.012,.085,new THREE.MeshBasicMaterial({color:modern?0x5ed1ff:0x6fa37c}),x+.13,.93,z-.12);
+}
+mpc(production,-.35,-.78,false);mpc(production,.55,-.77,true);
+box(production,1.25,.07,.28,M(0x151515,.38,.28),-.55,.84,.02);
+for(let i=0;i<9;i++){const col=[0x6d3028,0x303f5a,0x5b4b2b,0x244b3e,0x67513d][i%5];box(production,.21,.035,.28,M(col,.78),2.42,.18+i*.045,-2.55+i*.012)}
 
-        if (Cesium.defined(canvasPos)) {
-          h.el.style.display = "grid";
-          h.el.style.left = `${canvasPos.x - 24}px`;
-          h.el.style.top = `${canvasPos.y - 24}px`;
-        } else {
-          h.el.style.display = "none";
-        }
-      });
-    }
+const vinylNames=[["JAY-Z",0x1a2028],["SADE",0x50413e],["DRAKE",0x302014],["KANYE",0x6d421d]];
+vinylNames.forEach((v,i)=>{
+  const c=document.createElement("canvas");c.width=c.height=256;const x=c.getContext("2d");x.fillStyle="#"+v[1].toString(16).padStart(6,"0");x.fillRect(0,0,256,256);x.fillStyle="#efe7d6";x.font="700 30px Arial";x.textAlign="center";x.fillText(v[0],128,139);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  const s=new THREE.Mesh(new THREE.BoxGeometry(.44,.44,.025),new THREE.MeshStandardMaterial({map:tex,roughness:.62}));s.position.set(-.84+i*.57,1.82,-2.55);production.add(s);
+});
 
-    viewer.scene.postRender.addEventListener(updateHotspots);
+new RGBELoader().load("https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr",t=>{t.mapping=THREE.EquirectangularReflectionMapping;scene.environment=t},undefined,()=>{});
+function showInterior(room){
+  work.visible=room==="work";production.visible=room==="production";
+  if(room==="work"){camera.position.set(4.7,2.35,5.3);controls.target.set(0,1.05,-.65)}
+  else{camera.position.set(4.9,2.6,5.4);controls.target.set(0,1.15,-.85)}
+  controls.update();
+}
+const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=[0,0];
+canvas.addEventListener("pointerdown",e=>down=[e.clientX,e.clientY]);
+canvas.addEventListener("pointerup",e=>{
+  if(document.body.dataset.room!=="work"||Math.hypot(e.clientX-down[0],e.clientY-down[1])>8)return;
+  const r=canvas.getBoundingClientRect();pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;ray.setFromCamera(pointer,camera);
+  const hit=ray.intersectObjects(clickables,true)[0];if(hit?.object?.userData?.action==="release")document.getElementById("release").classList.add("open");
+});
 
-    let currentRoom = "downtown";
-
-    function hideHotspots(hidden) {
-      hotspotEls.forEach(h => {
-        h.el.style.opacity = hidden ? "0" : "1";
-        h.el.style.pointerEvents = hidden ? "none" : "auto";
-      });
-    }
-
-    function openRoom(room) {
-      currentRoom = room;
-      backBtn.style.display = "block";
-
-      if (room === "drive") {
-        roomPanel.style.display = "none";
-        hideHotspots(true);
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(55.2708, 25.1936, 250),
-          orientation: {
-            heading: Cesium.Math.toRadians(55),
-            pitch: Cesium.Math.toRadians(-25),
-            roll: 0
-          },
-          duration: 2
-        });
-      }
-
-      if (room === "fountain") {
-        roomPanel.style.display = "none";
-        hideHotspots(true);
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(55.2752, 25.1955, 180),
-          orientation: {
-            heading: Cesium.Math.toRadians(10),
-            pitch: Cesium.Math.toRadians(-30),
-            roll: 0
-          },
-          duration: 2
-        });
-      }
-
-      if (room === "work") {
-        roomPanel.style.display = "block";
-        hideHotspots(true);
-        // Replace later with custom interior room overlay / canvas scene
-      }
-
-      if (room === "production") {
-        roomPanel.style.display = "none";
-        hideHotspots(true);
-        // Replace later with production room interior
-      }
-    }
-
-    backBtn.onclick = () => {
-      currentRoom = "downtown";
-      roomPanel.style.display = "none";
-      hideHotspots(false);
-      backBtn.style.display = "none";
-
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(55.2744, 25.1972, 1400),
-        orientation: {
-          heading: Cesium.Math.toRadians(25),
-          pitch: Cesium.Math.toRadians(-38),
-          roll: 0
-        },
-        duration: 2.2
-      });
-    };
-  </script>
+const veil=document.getElementById("veil"),release=document.getElementById("release");
+document.getElementById("closeRelease").onclick=()=>release.classList.remove("open");
+let current="downtown";
+async function transition(fn){veil.classList.add("on");await new Promise(r=>setTimeout(r,240));fn();requestAnimationFrame(()=>setTimeout(()=>veil.classList.remove("on"),80))}
+async function openRoom(room){
+  if(room===current)return;current=room;document.body.dataset.room=room;release.classList.remove("open");history.replaceState(null,"","#"+room);
+  if(room==="work"||room==="production"){await transition(()=>{mapEl.style.display="none";grade.style.display="none";canvas.style.display="block";hideMarkers(true);showInterior(room)})}
+  else{await transition(()=>{canvas.style.display="none";mapEl.style.display="block";grade.style.display="block";hideMarkers(room!=="downtown");if(room==="downtown")fly(views.downtown);if(room==="drive")fly(views.drive);if(room==="fountain")fly(views.fountain)})}
+}
+document.getElementById("back").onclick=()=>openRoom("downtown");
+const hash=location.hash.slice(1);if(["drive","fountain","work","production"].includes(hash))setTimeout(()=>openRoom(hash),1200);
+function loop(){requestAnimationFrame(loop);if(canvas.style.display!=="none"){controls.update();renderer.render(scene,camera)}}loop();
+addEventListener("resize",()=>{renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();viewer.resize()});
+setTimeout(()=>document.getElementById("loader").classList.add("hide"),2600);
+</script>
 </body>
 </html>
