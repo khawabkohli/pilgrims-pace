@@ -196,194 +196,14 @@ if(typeof THREE==='undefined'){
 
 let dubaiMap=null;
 let mapReady=false;
-const DUBAI_HOME={center:[55.27515,25.19655],zoom:16.05,pitch:68,bearing:-24};
-const DUBAI_WATER={center:[55.27545,25.19525],zoom:17.25,pitch:72,bearing:24};
+const DUBAI_HOME={center:[55.27505,25.19620],zoom:16.72,pitch:57,bearing:-17};
+const DUBAI_WATER={center:[55.27542,25.19518],zoom:17.45,pitch:61,bearing:18};
 const DUBAI_POINTS={
   work:[55.27910,25.19755],
   production:[55.27195,25.19415],
   waterfront:[55.27545,25.19535],
   burj:[55.27435,25.19720]
 };
-
-/* ---------- DOWNTOWN DUBAI LANDMARK MODELS ---------- */
-function makeMapFacade(seed=1,base='#20252b',warm='#d9a15e'){
-  const cv=document.createElement('canvas');cv.width=256;cv.height=512;
-  const x=cv.getContext('2d');
-  x.fillStyle=base;x.fillRect(0,0,256,512);
-  let s=seed*9176+31;
-  const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296};
-  const cols=9,rows=26,cw=256/cols,ch=512/rows;
-  for(let r=0;r<rows;r++)for(let q=0;q<cols;q++){
-    const on=rnd()>.38;
-    x.fillStyle=on?(rnd()>.86?'#dce6ed':warm):'#111417';
-    x.globalAlpha=on?(.50+rnd()*.42):.64;
-    x.fillRect(q*cw+5,r*ch+5,cw-10,ch-10);
-  }
-  x.globalAlpha=1;
-  const t=new THREE.CanvasTexture(cv);
-  t.encoding=THREE.sRGBEncoding;
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;
-  return t;
-}
-function mapTowerMaterial(seed=1,color=0x283039){
-  const tex=makeMapFacade(seed);
-  return new THREE.MeshStandardMaterial({
-    color,roughness:.38,metalness:.46,map:tex,
-    emissive:new THREE.Color(0x8b5d35),emissiveMap:tex,emissiveIntensity:.48
-  });
-}
-function geoWrap(obj,lngLat,alt=0){
-  const mc=maplibregl.MercatorCoordinate.fromLngLat(lngLat,alt);
-  const scale=mc.meterInMercatorCoordinateUnits();
-  const wrap=new THREE.Group();
-  wrap.matrixAutoUpdate=false;
-  wrap.matrix
-    .makeTranslation(mc.x,mc.y,mc.z)
-    .scale(new THREE.Vector3(scale,-scale,scale))
-    .multiply(new THREE.Matrix4().makeRotationX(Math.PI/2));
-  wrap.add(obj);
-  return wrap;
-}
-function modelBoxTower(w,d,h,seed,taper=.92){
-  const g=new THREE.Group(),mat=mapTowerMaterial(seed);
-  const podium=new THREE.Mesh(new THREE.BoxGeometry(w*1.08,10,d*1.08),mat);
-  podium.position.y=5;g.add(podium);
-  const sections=5;
-  let y=10;
-  for(let i=0;i<sections;i++){
-    const sh=(h-10)/sections;
-    const s=Math.pow(taper,i);
-    const m=new THREE.Mesh(new THREE.BoxGeometry(w*s,sh,d*s),mat);
-    m.position.y=y+sh/2;m.castShadow=true;m.receiveShadow=true;g.add(m);y+=sh;
-  }
-  return g;
-}
-function modelRoundedTower(r,h,seed){
-  const g=new THREE.Group(),mat=mapTowerMaterial(seed,0x313a43);
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(r*.78,r,h,18),mat);
-  body.position.y=h/2;g.add(body);
-  const crown=new THREE.Mesh(new THREE.CylinderGeometry(r*.48,r*.78,18,18),mat);
-  crown.position.y=h+9;g.add(crown);
-  return g;
-}
-function modelSkyView(){
-  const g=new THREE.Group(),mat=mapTowerMaterial(44,0x2d3540);
-  const left=modelBoxTower(36,28,255,41,.965);left.position.x=-31;g.add(left);
-  const right=modelBoxTower(38,30,240,42,.965);right.position.x=31;g.add(right);
-  const bridge=new THREE.Mesh(new THREE.BoxGeometry(78,18,22),mat);
-  bridge.position.set(0,190,0);g.add(bridge);
-  const crown=new THREE.Mesh(new THREE.BoxGeometry(76,7,18),new THREE.MeshStandardMaterial({
-    color:0xa18458,roughness:.32,metalness:.72,emissive:0x3b2512,emissiveIntensity:.25
-  }));
-  crown.position.set(0,203,0);g.add(crown);
-  return g;
-}
-function modelBurjFallback(){
-  const g=new THREE.Group();
-  const silver=new THREE.MeshStandardMaterial({color:0x8d9daa,roughness:.28,metalness:.72});
-  const glass=mapTowerMaterial(93,0x66798a);
-  const tiers=[
-    [0,95,48],[95,92,44],[187,88,40],[275,82,35],
-    [357,74,31],[431,68,27],[499,60,23],[559,52,20],[611,43,17],[654,38,14]
-  ];
-  tiers.forEach((t,i)=>{
-    const h=t[1],r=t[2];
-    const core=new THREE.Mesh(new THREE.CylinderGeometry(r*.46,r*.58,h,18),glass);
-    core.position.y=t[0]+h/2;g.add(core);
-    for(let a=0;a<3;a++){
-      const wing=new THREE.Mesh(new THREE.BoxGeometry(r*.95,h*.94,r*.25),glass);
-      wing.position.set(Math.cos(a*Math.PI*2/3)*r*.29,t[0]+h*.47,Math.sin(a*Math.PI*2/3)*r*.29);
-      wing.rotation.y=-a*Math.PI*2/3;g.add(wing);
-    }
-  });
-  const top=new THREE.Mesh(new THREE.CylinderGeometry(7,12,92,14),silver);
-  top.position.y=700;g.add(top);
-  const spire=new THREE.Mesh(new THREE.CylinderGeometry(1.4,4.8,115,12),silver);
-  spire.position.y=803;g.add(spire);
-  return g;
-}
-function normalizeBurjModel(root){
-  root.updateMatrixWorld(true);
-  const b=new THREE.Box3().setFromObject(root);
-  const sz=new THREE.Vector3();b.getSize(sz);
-  const k=828/Math.max(sz.y,1);
-  root.scale.multiplyScalar(k);
-  root.updateMatrixWorld(true);
-  const bb=new THREE.Box3().setFromObject(root);
-  const ctr=new THREE.Vector3();bb.getCenter(ctr);
-  root.position.x-=ctr.x;root.position.z-=ctr.z;root.position.y-=bb.min.y;
-  root.traverse(n=>{
-    if(n.isMesh&&n.material){
-      n.castShadow=true;n.receiveShadow=true;
-      const mats=Array.isArray(n.material)?n.material:[n.material];
-      mats.forEach(m=>{
-        m.transparent=false;m.opacity=1;m.depthWrite=true;
-        if('roughness' in m)m.roughness=Math.min(.42,m.roughness??.42);
-        if('metalness' in m)m.metalness=Math.max(.18,m.metalness??.18);
-        m.needsUpdate=true;
-      });
-    }
-  });
-}
-function addDubaiLandmarksLayer(map){
-  const customLayer={
-    id:'downtown-dubai-landmarks',
-    type:'custom',
-    renderingMode:'3d',
-    onAdd(map,gl){
-      this.map=map;
-      this.scene=new THREE.Scene();
-      this.camera=new THREE.Camera();
-      this.renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl,antialias:true});
-      this.renderer.autoClear=false;
-      this.renderer.outputEncoding=THREE.sRGBEncoding;
-      this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure=.82;
-
-      this.scene.add(new THREE.HemisphereLight(0x9eb3d1,0x17110d,1.05));
-      const sun=new THREE.DirectionalLight(0xffd2a4,1.9);
-      sun.position.set(-350,700,450);this.scene.add(sun);
-      const rim=new THREE.DirectionalLight(0x789bd0,.78);
-      rim.position.set(450,350,-500);this.scene.add(rim);
-
-      // Burj Khalifa: detailed local fallback immediately, replaced by the real GLB when loaded.
-      const burjHolder=new THREE.Group();
-      const fallback=modelBurjFallback();burjHolder.add(fallback);
-      this.scene.add(geoWrap(burjHolder,[55.27435,25.19720],0));
-
-      const gltf=new THREE.GLTFLoader();
-      gltf.load(
-        'https://cdn.jsdelivr.net/gh/hszzhua2/world-architecture-atlas-3d@clean-main/apps/geolibre-desktop/public/models/burj-khalifa.glb',
-        data=>{
-          normalizeBurjModel(data.scene);
-          burjHolder.clear();
-          burjHolder.add(data.scene);
-          map.triggerRepaint();
-        },
-        undefined,
-        ()=>{}
-      );
-
-      // Recognisable Downtown Dubai massing, in real geographic positions.
-      this.scene.add(geoWrap(modelBoxTower(42,32,302,11,.96),[55.27905,25.19365],0)); // Address Downtown
-      this.scene.add(geoWrap(modelSkyView(),[55.26985,25.20155],0));                  // Address Sky View
-      this.scene.add(geoWrap(modelBoxTower(35,27,272,22,.96),[55.27130,25.20055],0)); // Burj Vista 1
-      this.scene.add(geoWrap(modelBoxTower(32,25,254,23,.96),[55.27175,25.20015],0)); // Burj Vista 2
-      this.scene.add(geoWrap(modelBoxTower(36,30,280,31,.975),[55.28025,25.19465],0)); // Boulevard Point
-      this.scene.add(geoWrap(modelRoundedTower(24,288,34),[55.27215,25.19180],0));     // Opera Grand
-      this.scene.add(geoWrap(modelRoundedTower(21,230,36),[55.27685,25.19095],0));     // Downtown tower
-      this.scene.add(geoWrap(modelBoxTower(46,31,205,38,.97),[55.28100,25.19700],0));  // Dubai Mall edge tower
-    },
-    render(gl,args){
-      const m=new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);
-      this.camera.projectionMatrix=m;
-      this.renderer.resetState();
-      this.renderer.render(this.scene,this.camera);
-      this.map.triggerRepaint();
-    }
-  };
-  try{ map.addLayer(customLayer); }catch(e){ console.warn('Dubai landmark layer',e); }
-}
 
 function initDubaiMap(){
   if(typeof maplibregl==='undefined') return;
@@ -407,10 +227,10 @@ function initDubaiMap(){
             type:'raster',
             source:'satellite',
             paint:{
-              'raster-saturation':-.16,
-              'raster-contrast':.12,
-              'raster-brightness-min':.03,
-              'raster-brightness-max':.72
+              'raster-saturation':-.10,
+              'raster-contrast':.06,
+              'raster-brightness-min':.05,
+              'raster-brightness-max':.84
             }
           }
         ]
@@ -419,10 +239,10 @@ function initDubaiMap(){
       zoom:DUBAI_HOME.zoom,
       pitch:DUBAI_HOME.pitch,
       bearing:DUBAI_HOME.bearing,
-      maxPitch:80,
-      minZoom:14.4,
-      maxZoom:19,
-      maxBounds:[[54.82,24.78],[55.72,25.47]],
+      maxPitch:72,
+      minZoom:15.35,
+      maxZoom:18.6,
+      maxBounds:[[55.2525,25.1810],[55.2975,25.2115]],
       renderWorldCopies:false,
       attributionControl:false,
       canvasContextAttributes:{antialias:true}
@@ -454,24 +274,22 @@ function initDubaiMap(){
             'fill-extrusion-color':[
               'interpolate',['linear'],
               ['coalesce',['to-number',['get','render_height']],0],
-              0,'#17191c',
-              60,'#22262b',
-              180,'#3c3934',
-              350,'#6a5943',
-              700,'#a77d49'
+              0,'#20252a',
+              45,'#252b31',
+              120,'#2b3239',
+              240,'#313943',
+              500,'#38434d'
             ],
             'fill-extrusion-height':[
               'interpolate',['linear'],['zoom'],
-              14.6,0,
-              15.1,['coalesce',['to-number',['get','render_height']],0]
+              15.35,0,
+              15.78,['coalesce',['to-number',['get','render_height']],0]
             ],
             'fill-extrusion-base':['coalesce',['to-number',['get','render_min_height']],0],
-            'fill-extrusion-opacity':1,
+            'fill-extrusion-opacity':.96,
             'fill-extrusion-vertical-gradient':true
           }
         });
-
-        addDubaiLandmarksLayer(dubaiMap);
       }catch(e){ console.warn('Map detail layer warning',e); }
 
       mapReady=true;
