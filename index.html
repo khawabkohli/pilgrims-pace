@@ -16,7 +16,6 @@
   --muted:#c7b994;
   --faint:#9e9175;
   --rule:rgba(231,215,181,.18);
-  --page-max:560px;
 }
 *{box-sizing:border-box}
 html{
@@ -34,7 +33,7 @@ body{
   min-height:100svh;
   color:var(--text);
   font-family:Arial,Helvetica,sans-serif;
-  background-color:var(--bg);
+  background:var(--bg);
   overflow-x:hidden;
 }
 body::before{
@@ -50,42 +49,40 @@ body::after{
   position:fixed;
   inset:0;
   z-index:-1;
-  background:linear-gradient(180deg,rgba(23,18,11,.80),rgba(23,18,11,.96));
+  background:linear-gradient(180deg,rgba(23,18,11,.84),rgba(23,18,11,.96));
 }
 .page{
-  width:100%;
   min-height:100vh;
   min-height:100svh;
+  display:grid;
+  place-items:center;
   padding:
     max(18px,env(safe-area-inset-top))
     max(16px,env(safe-area-inset-right))
-    max(24px,env(safe-area-inset-bottom))
+    max(22px,env(safe-area-inset-bottom))
     max(16px,env(safe-area-inset-left));
 }
-main{
-  width:min(100%,var(--page-max));
-  margin:0 auto;
+.release{
+  width:min(100%,1120px);
+  margin:auto;
 }
 .cover{
-  display:block;
   width:100%;
-  aspect-ratio:1/1;
+  aspect-ratio:1;
   object-fit:cover;
-  object-position:center;
-  border:0;
-  border-radius:1px;
-  box-shadow:0 18px 60px rgba(0,0,0,.52);
+  display:block;
+  box-shadow:0 18px 60px rgba(0,0,0,.5);
 }
+.info{min-width:0}
 .head{
-  padding:clamp(18px,3.2vw,24px) 2px 17px;
+  padding:20px 2px 17px;
   border-bottom:1px solid var(--rule);
 }
 .title{
   margin:0;
-  max-width:100%;
   font-family:Georgia,'Times New Roman',serif;
   font-weight:400;
-  font-size:clamp(34px,8vw,54px);
+  font-size:clamp(34px,10vw,48px);
   line-height:.96;
   letter-spacing:-.04em;
   overflow-wrap:anywhere;
@@ -99,7 +96,7 @@ main{
   color:var(--muted);
 }
 .links a{
-  min-height:60px;
+  min-height:58px;
   padding:0 2px;
   display:flex;
   align-items:center;
@@ -109,12 +106,8 @@ main{
   text-decoration:none;
   border-bottom:1px solid var(--rule);
   font-size:15px;
-  line-height:1.2;
   -webkit-tap-highlight-color:transparent;
   transition:opacity .18s ease,transform .18s ease;
-}
-.links a span:first-child{
-  min-width:0;
 }
 .links a span:last-child{
   flex:0 0 auto;
@@ -128,12 +121,12 @@ main{
   outline-offset:4px;
 }
 .foot{
-  padding:19px 2px 2px;
+  padding:18px 2px 1px;
   display:flex;
   justify-content:space-between;
   gap:12px;
   font-size:9px;
-  line-height:1.45;
+  line-height:1.4;
   letter-spacing:.18em;
   text-transform:uppercase;
   color:var(--faint);
@@ -141,25 +134,61 @@ main{
 @media (hover:hover) and (pointer:fine){
   .links a:hover{opacity:.65;transform:translateX(2px)}
 }
+
+/* Phones + portrait tablets: stacked */
+@media (max-width:839px){
+  .release{max-width:590px}
+  .foot{padding-bottom:6px}
+}
+
+/* iPads landscape + laptops + desktops: fit the whole release in one view */
+@media (min-width:840px){
+  .page{
+    padding-top:max(28px,env(safe-area-inset-top));
+    padding-bottom:max(28px,env(safe-area-inset-bottom));
+  }
+  .release{
+    display:grid;
+    grid-template-columns:minmax(0,1.08fr) minmax(330px,.92fr);
+    gap:clamp(34px,5vw,72px);
+    align-items:center;
+  }
+  .cover{
+    width:min(100%,66vh);
+    justify-self:end;
+  }
+  .info{
+    width:min(100%,430px);
+    justify-self:start;
+  }
+  .head{padding:0 2px 21px}
+  .title{font-size:clamp(46px,4.6vw,70px)}
+  .artist{margin-top:13px}
+  .links a{min-height:62px}
+  .foot{padding-top:20px}
+}
+
+/* Short laptop windows */
+@media (min-width:840px) and (max-height:720px){
+  .release{gap:34px}
+  .cover{width:min(100%,62vh)}
+  .title{font-size:clamp(40px,4.2vw,58px)}
+  .links a{min-height:52px}
+  .head{padding-bottom:15px}
+  .foot{padding-top:14px}
+}
+
+/* Small phones */
 @media (max-width:420px){
   .page{
     padding-left:max(14px,env(safe-area-inset-left));
     padding-right:max(14px,env(safe-area-inset-right));
   }
-  .title{font-size:clamp(32px,10vw,42px)}
-  .links a{min-height:58px}
+  .title{font-size:clamp(31px,10vw,42px)}
+  .links a{min-height:56px}
   .foot{flex-direction:column;gap:5px}
 }
-@media (min-width:768px){
-  .page{padding-top:max(32px,env(safe-area-inset-top));padding-bottom:max(36px,env(safe-area-inset-bottom))}
-}
-@media (min-width:1200px){
-  .page{padding-top:42px;padding-bottom:42px}
-}
-@media (orientation:landscape) and (max-height:520px){
-  .page{padding-top:14px;padding-bottom:18px}
-  main{width:min(78vh,460px)}
-}
+
 @media (prefers-reduced-motion:reduce){
   .links a{transition:none}
 }
@@ -167,21 +196,23 @@ main{
 </head>
 <body>
 <div class="page">
-<main>
-<img class="cover" src="https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg" alt="Pilgrim’s Pace cover artwork">
-<section class="head">
-  <h1 class="title">Pilgrim’s Pace</h1>
-  <div class="artist">Khawab Kohli</div>
-</section>
-<nav class="links" aria-label="Listen to Pilgrim’s Pace">
-  <a href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz" target="_blank" rel="noopener noreferrer"><span>Spotify</span><span>Listen ↗</span></a>
-  <a href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank" rel="noopener noreferrer"><span>Apple Music</span><span>Listen ↗</span></a>
-  <a href="https://music.youtube.com/watch?v=ROwIV9T7IIc" target="_blank" rel="noopener noreferrer"><span>YouTube Music</span><span>Listen ↗</span></a>
-  <a href="https://music.amazon.com.au/albums/B0HKZ3QZ2M" target="_blank" rel="noopener noreferrer"><span>Amazon Music</span><span>Listen ↗</span></a>
-  <a href="https://tidal.com/album/564211468/u" target="_blank" rel="noopener noreferrer"><span>TIDAL</span><span>Listen ↗</span></a>
-</nav>
-<footer class="foot"><span>A record by Khawab Kohli</span><span>2026</span></footer>
-</main>
+  <main class="release">
+    <img class="cover" src="https://i.ytimg.com/vi/ROwIV9T7IIc/maxresdefault.jpg" alt="Pilgrim’s Pace cover artwork">
+    <section class="info">
+      <header class="head">
+        <h1 class="title">Pilgrim’s Pace</h1>
+        <div class="artist">Khawab Kohli</div>
+      </header>
+      <nav class="links" aria-label="Listen to Pilgrim’s Pace">
+        <a href="https://open.spotify.com/track/7lAKKJmumRbe8TNYyafqcz" target="_blank" rel="noopener noreferrer"><span>Spotify</span><span>Listen ↗</span></a>
+        <a href="https://music.apple.com/au/album/pilgrims-pace-single/6816145484" target="_blank" rel="noopener noreferrer"><span>Apple Music</span><span>Listen ↗</span></a>
+        <a href="https://music.youtube.com/watch?v=ROwIV9T7IIc" target="_blank" rel="noopener noreferrer"><span>YouTube Music</span><span>Listen ↗</span></a>
+        <a href="https://music.amazon.com.au/albums/B0HKZ3QZ2M" target="_blank" rel="noopener noreferrer"><span>Amazon Music</span><span>Listen ↗</span></a>
+        <a href="https://tidal.com/album/564211468/u" target="_blank" rel="noopener noreferrer"><span>TIDAL</span><span>Listen ↗</span></a>
+      </nav>
+      <footer class="foot"><span>A record by Khawab Kohli</span><span>2026</span></footer>
+    </section>
+  </main>
 </div>
 </body>
 </html>
