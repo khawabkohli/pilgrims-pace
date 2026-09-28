@@ -87,14 +87,10 @@ body[data-view="work"] #roomHint{display:block}
 @media(prefers-reduced-motion:reduce){#fade,#loader,.hotspot{transition:none}}
 </style>
 
-<script type="importmap">
-{
-  "imports":{
-    "three":"https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js",
-    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/"
-  }
-}
-</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
 </head>
 <body data-view="city">
 <div id="app">
@@ -124,17 +120,34 @@ body[data-view="work"] #roomHint{display:block}
   <div id="loader"><div class="track"><i></i></div></div>
 </div>
 
-<script type="module">
-import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
+<script>
+window.__bootError=false;
+window.addEventListener('error',function(e){
+  window.__bootError=true;
+  const l=document.getElementById('loader');
+  if(l) l.innerHTML='<div style="max-width:520px;padding:22px;color:#eee;font:12px/1.55 Arial;text-align:center">3D scene error: '+String(e.message||'unknown error')+'</div>';
+});
+window.addEventListener('unhandledrejection',function(e){
+  window.__bootError=true;
+  const l=document.getElementById('loader');
+  if(l) l.innerHTML='<div style="max-width:520px;padding:22px;color:#eee;font:12px/1.55 Arial;text-align:center">3D asset error: '+String((e.reason&&e.reason.message)||e.reason||'unknown error')+'</div>';
+});
+setTimeout(function(){
+  if(!window.__bootError){
+    const l=document.getElementById('loader');
+    if(l) l.classList.add('hide');
+  }
+},1800);
+
+if(typeof THREE==='undefined'){
+  throw new Error('Three.js failed to load');
+}
 
 const canvas=document.getElementById('world');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));
 renderer.setSize(innerWidth,innerHeight,false);
-renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=.92;
 renderer.shadowMap.enabled=true;
@@ -145,7 +158,7 @@ scene.background=new THREE.Color(0x030508);
 scene.fog=new THREE.FogExp2(0x05070a,.0125);
 
 const camera=new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.04,180);
-const controls=new OrbitControls(camera,canvas);
+const controls=new THREE.OrbitControls(camera,canvas);
 controls.enableDamping=true;
 controls.dampingFactor=.055;
 controls.enablePan=false;
@@ -207,7 +220,7 @@ function windowTexture(seed=1){
   }
   x.globalAlpha=1;
   const t=new THREE.CanvasTexture(c);
-  t.colorSpace=THREE.SRGBColorSpace;
+  t.encoding=THREE.sRGBEncoding;
   t.wrapS=t.wrapT=THREE.RepeatWrapping;
   t.repeat.set(1.1,1.2);
   windowTextures[seed]=t;
@@ -351,7 +364,7 @@ for(let i=0;i<12;i++){
 }
 
 // Burj model
-const gltf=new GLTFLoader();
+const gltf=new THREE.GLTFLoader();
 gltf.load(
   'https://cdn.jsdelivr.net/gh/hszzhua2/world-architecture-atlas-3d@clean-main/apps/geolibre-desktop/public/models/burj-khalifa.glb',
   g=>{
@@ -448,7 +461,7 @@ function speaker(parent,x,y,z){
 }
 speaker(work,-1.05,1.06,-.78);speaker(work,1.05,1.06,-.78);
 const micStand=cyl(work,.015,.025,.92,12,MAT.metal,1.72,.46,-.10);
-const mic=new THREE.Mesh(new THREE.CapsuleGeometry(.065,.18,6,12),new THREE.MeshStandardMaterial({color:0x1a1b1e,roughness:.32,metalness:.55}));
+const mic=new THREE.Mesh(new THREE.CylinderGeometry(.065,.065,.28,16),new THREE.MeshStandardMaterial({color:0x1a1b1e,roughness:.32,metalness:.55}));
 mic.position.set(1.72,1.02,-.10);work.add(mic);
 
 // side shelf & books
@@ -526,13 +539,13 @@ function fallbackCover(label,i){
   const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');
   const bg=['#2c333b','#e7e3dc','#4b2d1c','#8d4d20'][i];x.fillStyle=bg;x.fillRect(0,0,512,512);
   x.fillStyle='#f2eadb';x.font='700 62px Arial';x.textAlign='center';x.textBaseline='middle';x.fillText(label,256,256);
-  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;
 }
 vinylCovers.forEach((url,i)=>{
   const mat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.62});
   const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.52,.52,.028),mat);
   sleeve.position.set(-.75+i*.55,1.88,-2.42);sleeve.rotation.x=-.035;sleeve.castShadow=true;production.add(sleeve);
-  coverLoader.load(url,t=>{t.colorSpace=THREE.SRGBColorSpace;mat.map=t;mat.needsUpdate=true},undefined,()=>{mat.map=fallbackCover(vinylFallback[i],i);mat.needsUpdate=true});
+  coverLoader.load(url,t=>{t.encoding=THREE.sRGBEncoding;mat.map=t;mat.needsUpdate=true},undefined,()=>{mat.map=fallbackCover(vinylFallback[i],i);mat.needsUpdate=true});
   const disc=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.008,48),new THREE.MeshStandardMaterial({color:0x070708,roughness:.25,metalness:.12}));
   disc.rotation.x=Math.PI/2;disc.position.set(-.63+i*.55,1.88,-2.445);production.add(disc);
 });
@@ -541,7 +554,7 @@ vinylCovers.forEach((url,i)=>{
 const shelfLight=new THREE.PointLight(0xffa857,10,4.5,2);shelfLight.position.set(.1,2.26,-2.15);production.add(shelfLight);
 
 /* ---------- HDR ENVIRONMENT ---------- */
-new RGBELoader().load(
+new THREE.RGBELoader().load(
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/modern_buildings_night_1k.hdr',
   tex=>{
     tex.mapping=THREE.EquirectangularReflectionMapping;
@@ -645,7 +658,6 @@ function animate(){
   }
 }
 
-setTimeout(()=>document.getElementById('loader').classList.add('hide'),900);
 animate();
 
 addEventListener('resize',()=>{
