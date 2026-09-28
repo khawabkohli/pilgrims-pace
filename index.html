@@ -53,14 +53,6 @@ body.map-ready[data-view="terrace"] #placeTag{display:block}
 body.map-ready[data-view="city"] #burjLabel,
 body.map-ready[data-view="terrace"] #burjLabel{display:block}
 
-#releaseLaunch{
-  position:absolute;z-index:31;right:var(--safe-r);bottom:var(--safe-b);display:none;
-  border:1px solid rgba(212,174,104,.55);border-radius:999px;
-  padding:11px 14px;background:rgba(8,8,8,.56);backdrop-filter:blur(12px);
-  color:#efd39a;letter-spacing:.08em;text-transform:uppercase;font-size:9px;
-  cursor:pointer;box-shadow:0 12px 36px rgba(0,0,0,.32)
-}
-body[data-view="work"] #releaseLaunch{display:block}
 #vignette{position:absolute;inset:0;z-index:5;pointer-events:none;background:
 radial-gradient(circle at 50% 42%,transparent 42%,rgba(0,0,0,.22) 76%,rgba(0,0,0,.50) 110%),
 linear-gradient(180deg,rgba(0,0,0,.10),transparent 30%,rgba(0,0,0,.13))}
@@ -100,6 +92,7 @@ linear-gradient(180deg,rgba(0,0,0,.10),transparent 30%,rgba(0,0,0,.13))}
   box-shadow:0 12px 34px rgba(0,0,0,.26)
 }
 body:not([data-view="city"]) #back{display:grid}
+body:not([data-view="city"]) .hotspot{display:none!important}
 #back[data-label]::after{
   content:attr(data-label);position:absolute;left:50%;bottom:calc(100% + 9px);
   transform:translateX(-50%);padding:6px 9px;border-radius:999px;
@@ -161,7 +154,6 @@ body[data-view="work"] #roomHint{display:block}
   <button id="terraceHotspot" class="hotspot" data-label="Waterfront" aria-label="Move to water terrace"></button>
 
   <button id="back" data-label="Back" aria-label="Back">←</button>
-  <button id="releaseLaunch" aria-label="Open Pilgrim's Pace release">Pilgrim's Pace ↗</button>
   <div id="roomHint">drag to look around</div>
 
   <section id="release">
@@ -250,6 +242,8 @@ function initDubaiMap(){
       maxPitch:80,
       minZoom:14.4,
       maxZoom:19,
+      maxBounds:[[54.82,24.78],[55.72,25.47]],
+      renderWorldCopies:false,
       attributionControl:false,
       canvasContextAttributes:{antialias:true}
     });
@@ -324,17 +318,23 @@ function positionMapElement(el,lngLat,offsetY=0){
 function updateMapUI(){
   if(!mapReady||!dubaiMap) return;
   const cityMain=document.body.dataset.view==='city';
-  positionMapElement(document.getElementById('workHotspot'),DUBAI_POINTS.work);
-  positionMapElement(document.getElementById('productionHotspot'),DUBAI_POINTS.production);
-  positionMapElement(document.getElementById('terraceHotspot'),DUBAI_POINTS.waterfront);
-  if(!cityMain){
-    document.getElementById('workHotspot').style.display='none';
-    document.getElementById('productionHotspot').style.display='none';
-    document.getElementById('terraceHotspot').style.display='none';
+  const workEl=document.getElementById('workHotspot');
+  const prodEl=document.getElementById('productionHotspot');
+  const waterEl=document.getElementById('terraceHotspot');
+  if(cityMain){
+    positionMapElement(workEl,DUBAI_POINTS.work);
+    positionMapElement(prodEl,DUBAI_POINTS.production);
+    positionMapElement(waterEl,DUBAI_POINTS.waterfront);
+  }else{
+    workEl.style.display='none';
+    prodEl.style.display='none';
+    waterEl.style.display='none';
   }
-  const b=dubaiMap.project(DUBAI_POINTS.burj);
   const lab=document.getElementById('burjLabel');
-  lab.style.left=b.x+'px';lab.style.top=(b.y-12)+'px';
+  if(cityMain){
+    const b=dubaiMap.project(DUBAI_POINTS.burj);
+    lab.style.left=b.x+'px';lab.style.top=(b.y-12)+'px';
+  }
 }
 
 initDubaiMap();
@@ -1092,10 +1092,12 @@ function rebuildProductionRoom(){
   buildRoom(production,{w:8.4,d:5.6,h:3.25});
   roomLighting(production,1);
 
-  // treated back wall
-  for(const x of [-2.65,-1.75,-.85,.85,1.75,2.65]){
-    box(production,.58,1.28,.09,MAT.fabric,x,1.72,-2.72,false);
+  // dark acoustic treatment with a centered walnut feature wall
+  for(const x of [-3.10,-2.42,-1.74,1.74,2.42,3.10]){
+    box(production,.48,1.34,.085,MAT.fabric,x,1.73,-2.72,false);
   }
+  box(production,3.18,1.58,.08,MAT.darkWalnut,0,1.78,-2.82,false);
+  box(production,3.02,.028,.24,MAT.walnut,0,1.18,-2.76,false);
 
   const place=(url,pos,rot=0,scale=1)=>{
     heroLoader.load(url,g=>{
@@ -1106,35 +1108,51 @@ function rebuildProductionRoom(){
     },undefined,e=>console.warn('Studio asset fallback',url,e));
   };
 
-  // Real, metre-scale studio equipment from one coherent asset family
-  place('https://cdn.3dassets.dev/assets/33804/v1/model.glb',[0,0,-.52],0,1.00);       // mixing console
-  place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',[-1.48,0,-.86],.10,1.00); // left monitor
-  place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',[1.48,0,-.86],-.10,1.00); // right monitor
-  place('https://cdn.3dassets.dev/assets/33809/v1/model.glb',[0,0,.92],Math.PI,1.00);   // chair
-  place('https://cdn.3dassets.dev/assets/33806/v1/model.glb',[-2.35,0,-.62],.05,1.00); // rack
-  place('https://cdn.3dassets.dev/assets/33806/v1/model.glb',[2.35,0,-.62],-.05,1.00); // rack
-  place('https://cdn.3dassets.dev/assets/33808/v1/model.glb',[2.45,0,1.22],-.62,.95);  // second workstation
+  // One proper studio workstation: console, two nearfields, one chair, two side racks.
+  place('https://cdn.3dassets.dev/assets/33804/v1/model.glb',[0,0,-.58],0,.96);
+  place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',[-1.55,0,-.92],.08,.94);
+  place('https://cdn.3dassets.dev/assets/33805/v1/model.glb',[1.55,0,-.92],-.08,.94);
+  place('https://cdn.3dassets.dev/assets/33809/v1/model.glb',[0,0,.90],Math.PI,.92);
+  place('https://cdn.3dassets.dev/assets/33806/v1/model.glb',[-2.58,0,-.80],.05,.82);
+  place('https://cdn.3dassets.dev/assets/33806/v1/model.glb',[2.58,0,-.80],-.05,.82);
 
-  // warm wood record wall
-  box(production,3.10,1.25,.06,MAT.darkWalnut,0,1.75,-2.88,false);
-  box(production,2.92,.035,.22,MAT.walnut,0,1.22,-2.82,false);
+  // a single low sideboard, no extra computer
+  box(production,1.45,.58,.40,MAT.darkWalnut,3.12,.33,1.72,false);
+  box(production,1.34,.022,.38,MAT.brass,3.12,.635,1.72,false);
+
+  // four records, always visible: Jay-Z, Sade, Drake, Kanye
   const recordLoader=new THREE.TextureLoader();recordLoader.setCrossOrigin('anonymous');
+  const labels=['JAY-Z','SADE','DRAKE','KANYE'];
+  const xs=[-0.93,-0.31,0.31,0.93];
   vinylCovers.forEach((url,i)=>{
-    const mat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.55});
-    const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.48,.48,.025),mat);
-    sleeve.position.set(-.84+i*.56,1.62,-2.80);production.add(sleeve);
-    recordLoader.load(url,t=>{t.encoding=THREE.sRGBEncoding;mat.map=t;mat.needsUpdate=true},undefined,()=>{});
+    const mat=new THREE.MeshStandardMaterial({
+      color:0xffffff,roughness:.54,metalness:.02,
+      map:fallbackCover(labels[i],i)
+    });
+    const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.54,.54,.028),mat);
+    sleeve.position.set(xs[i],1.72,-2.69);
+    sleeve.rotation.x=-.025;
+    sleeve.castShadow=true;
+    production.add(sleeve);
+    recordLoader.load(url,t=>{
+      t.encoding=THREE.sRGBEncoding;
+      t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+      mat.map=t;mat.needsUpdate=true;
+    },undefined,()=>{});
   });
 
-  // subtle title plaque
-  const sign=document.createElement('canvas');sign.width=1024;sign.height=220;
-  const sx=sign.getContext('2d');
-  sx.fillStyle='rgba(0,0,0,.15)';sx.fillRect(0,0,1024,220);
-  sx.fillStyle='#e8d4ae';sx.font='600 58px Georgia';sx.textAlign='center';sx.fillText("PILGRIM'S PACE",512,96);
-  sx.fillStyle='rgba(232,212,174,.60)';sx.font='500 28px Arial';sx.fillText('KHAWAB KOHLI · 2026',512,150);
-  const st=new THREE.CanvasTexture(sign);st.encoding=THREE.sRGBEncoding;
-  const sm=new THREE.Mesh(new THREE.PlaneGeometry(2.25,.48),new THREE.MeshBasicMaterial({map:st,transparent:true,toneMapped:false}));
-  sm.position.set(0,2.48,-2.835);production.add(sm);
+  // understated practical lighting, no title plaque/sticker
+  const recordWash=new THREE.SpotLight(0xffba72,4.4,5.5,Math.PI*.30,.72,1.45);
+  recordWash.position.set(0,2.95,-1.55);
+  recordWash.target.position.set(0,1.65,-2.70);
+  production.add(recordWash,recordWash.target);
+
+  const sideGlow=new THREE.PointLight(0xffa45d,2.2,3.5,2);
+  sideGlow.position.set(3.05,1.05,1.60);
+  production.add(sideGlow);
+
+  // subtle rug anchors the room so equipment does not float visually
+  box(production,4.25,.018,2.12,new THREE.MeshStandardMaterial({color:0x27221f,roughness:.98}),0,.082,.22,false);
 }
 
 rebuildWorkRoom();
@@ -1187,6 +1205,7 @@ async function transition(fn){
 async function openView(name){
   if(name===current)return;
   current=name;document.body.dataset.view=name;release.classList.remove('open');
+  hsWork.style.display='none';hsProd.style.display='none';hsTerrace.style.display='none';
   history.replaceState(null,'','#'+name);
   await transition(()=>{
     const exterior=(name==='city'||name==='terrace');
@@ -1212,7 +1231,6 @@ hsProd.onclick=()=>openView('production');
 hsTerrace.onclick=()=>openView('terrace');
 back.onclick=()=>openView('city');
 document.getElementById('closeRelease').onclick=()=>release.classList.remove('open');
-document.getElementById('releaseLaunch').onclick=()=>release.classList.add('open');
 
 /* ---------- INTERACTIONS ---------- */
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=[0,0];
