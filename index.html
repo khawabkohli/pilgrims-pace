@@ -347,7 +347,7 @@ for(let i=0;i<12;i++){
   const h2=h1.clone();h1.position.set(.18,.08,.055);h2.position.set(.18,.08,-.055);g.add(h1,h2);
   const t1=new THREE.Mesh(new THREE.SphereGeometry(.021,8,8),new THREE.MeshBasicMaterial({color:0xff2f22}));
   const t2=t1.clone();t1.position.set(-.18,.08,.055);t2.position.set(-.18,.08,-.055);g.add(t1,t2);
-  city.add(g);cars.push({g,t:i/cars.length,speed:.010+(i%4)*.0015});
+  city.add(g);cars.push({g,t:i/12,speed:.010+(i%4)*.0015});
 }
 
 // Burj model
@@ -623,23 +623,29 @@ function placeHotspot(el,pos,visible=true){
 const clock=new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
-  const t=clock.getElapsedTime();
-  if(city.visible){
-    cars.forEach((c,i)=>{
-      c.t=(c.t+c.speed*.016*60)%1;
-      const p=carPath.getPointAt(c.t),p2=carPath.getPointAt((c.t+.008)%1);
-      c.g.position.copy(p);c.g.lookAt(p2);
-    });
-    lake.material.clearcoatRoughness=.14+Math.sin(t*.65)*.025;
-  }
-  controls.update();
-  renderer.render(scene,camera);
+  try{
+    const t=clock.getElapsedTime();
+    if(city.visible){
+      cars.forEach(c=>{
+        c.t=(c.t+c.speed*.016*60)%1;
+        const p=carPath.getPointAt(c.t),p2=carPath.getPointAt((c.t+.008)%1);
+        if(p&&p2){c.g.position.copy(p);c.g.lookAt(p2);}
+      });
+      lake.material.clearcoatRoughness=.14+Math.sin(t*.65)*.025;
+    }
+    controls.update();
+    renderer.render(scene,camera);
 
-  const cityMain=current==='city';
-  placeHotspot(hsWork,anchorWork,cityMain);
-  placeHotspot(hsProd,anchorProd,cityMain);
-  placeHotspot(hsTerrace,anchorTerrace,cityMain);
+    const cityMain=current==='city';
+    placeHotspot(hsWork,anchorWork,cityMain);
+    placeHotspot(hsProd,anchorProd,cityMain);
+    placeHotspot(hsTerrace,anchorTerrace,cityMain);
+  }catch(err){
+    console.error('render loop error',err);
+  }
 }
+
+setTimeout(()=>document.getElementById('loader').classList.add('hide'),900);
 animate();
 
 addEventListener('resize',()=>{
@@ -652,7 +658,6 @@ const initial=location.hash.slice(1);
 if(['terrace','work','production'].includes(initial)){
   setTimeout(()=>openView(initial),450);
 }
-setTimeout(()=>document.getElementById('loader').classList.add('hide'),1700);
 </script>
 </body>
 </html>
