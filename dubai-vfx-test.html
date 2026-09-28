@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pilgrim's Pace — Dubai V2 Test</title>
+<meta name="theme-color" content="#050505">
+<style>
+:root{--fg:#f1ece2;--muted:rgba(241,236,226,.62);--gold:#d4ae68;--safe:max(16px,env(safe-area-inset-left))}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050505;color:var(--fg);font-family:Arial,Helvetica,sans-serif}
+#app{position:relative;width:100%;height:100dvh;min-height:560px;overflow:hidden;background:#050505}
+#api-frame{position:absolute;inset:-58px -18px -34px -18px;width:calc(100% + 36px);height:calc(100% + 92px);border:0;background:#050505}
+#shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.13),transparent 33%,rgba(0,0,0,.16)),radial-gradient(circle at 50% 45%,transparent 47%,rgba(0,0,0,.36) 105%)}
+#tag{position:absolute;left:max(16px,env(safe-area-inset-left));top:max(16px,env(safe-area-inset-top));z-index:5;padding:10px 12px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(0,0,0,.45);backdrop-filter:blur(10px);pointer-events:none}
+#tag b{display:block;font-size:11px;letter-spacing:.15em;text-transform:uppercase}
+#tag span{display:block;margin-top:5px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.nav{position:absolute;z-index:10;width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.72);background:rgba(0,0,0,.34);backdrop-filter:blur(8px);display:grid;place-items:center;text-decoration:none;box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.nav::before{content:"→";font-size:24px}
+.nav::after{content:attr(data-label);position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);padding:6px 9px;border-radius:999px;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.14);font-size:9px;letter-spacing:.11em;text-transform:uppercase;white-space:nowrap}
+.gold{border-color:rgba(220,181,108,.96);color:#f2d69d}
+#studio{left:19%;top:61%}#water{left:47%;top:69%}#work{left:76%;top:60%}#gallery{left:29%;top:37%}
+#credit{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:7;padding:7px 9px;border:1px solid rgba(255,255,255,.11);border-radius:9px;background:rgba(0,0,0,.48);backdrop-filter:blur(8px);font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.58);text-decoration:none}
+#status{position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:7;padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.11);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.58)}
+@media(max-width:780px){.nav{width:44px;height:44px}#studio{left:12%;top:61%}#water{left:43%;top:72%}#work{left:75%;top:59%}#gallery{left:24%;top:35%}}
+</style>
+<script src="https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js"></script>
+</head>
+<body>
+<div id="app">
+  <iframe id="api-frame" title="3D Dubai City Landscape by vfxshashwat" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe>
+  <div id="shade"></div>
+  <div id="tag"><b>Downtown Dubai — V2 test</b><span>vfxshashwat base scene</span></div>
+
+  <a id="studio" class="nav gold" data-label="Studio" href="./#production" aria-label="Studio"></a>
+  <a id="water" class="nav" data-label="Waterfront" href="./#terrace" aria-label="Waterfront"></a>
+  <a id="work" class="nav gold" data-label="Work Room" href="./#work" aria-label="Work Room"></a>
+  <a id="gallery" class="nav gold" data-label="House of Elsewhere" href="./#gallery" aria-label="House of Elsewhere"></a>
+
+  <div id="status">loading Dubai model…</div>
+  <a id="credit" href="https://sketchfab.com/3d-models/3d-dubai-city-landscape-1971f4d90d474b29ab9949f79f85eb0d" target="_blank" rel="noopener noreferrer">3D base · vfxshashwat · Sketchfab</a>
+</div>
+<script>
+(function(){
+  var iframe=document.getElementById('api-frame');
+  var status=document.getElementById('status');
+  var client=new Sketchfab('1.12.1',iframe);
+  client.init('1971f4d90d474b29ab9949f79f85eb0d',{
+    autostart:1,
+    camera:0,
+    dnt:1,
+    ui_stop:0,
+    ui_theme:'dark',
+    success:function(api){
+      api.start();
+      api.addEventListener('viewerready',function(){
+        status.textContent='drag to explore · staging only';
+        setTimeout(function(){status.style.opacity='.45'},1800);
+      });
+    },
+    error:function(){
+      status.textContent='Dubai model failed to load';
+    }
+  });
+})();
+</script>
+</body>
+</html>
