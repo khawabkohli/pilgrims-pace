@@ -1233,13 +1233,18 @@ function buildHouseOfElsewhere(){
 
   // room shell
   box(gallery,W,.10,D,floorMat,0,.05,0,false);
-  box(gallery,.12,H,D,plaster,-W/2,H/2,0,false);
-  box(gallery,.12,H,D,plaster,W/2,H/2,0,false);
+  // On phone portrait, keep the side walls shallow so they frame the room
+  // without swinging in front of the paintings when the viewer looks left/right.
+  const phoneGallery=matchMedia('(max-width:700px)').matches;
+  const sideD=phoneGallery?3.0:D;
+  const sideZ=-D/2+sideD/2;
+  box(gallery,.12,H,sideD,plaster,-W/2,H/2,sideZ,false);
+  box(gallery,.12,H,sideD,plaster,W/2,H/2,sideZ,false);
   box(gallery,W,H,.12,plaster,0,H/2,-D/2,false);
   box(gallery,W,.10,D,plasterDark,0,H,0,false);
   box(gallery,W-.20,.11,.055,MAT.darkWalnut,0,.11,-D/2+.09,false);
-  box(gallery,.055,.11,D-.20,MAT.darkWalnut,-W/2+.09,.11,0,false);
-  box(gallery,.055,.11,D-.20,MAT.darkWalnut,W/2-.09,.11,0,false);
+  box(gallery,.055,.11,sideD-.20,MAT.darkWalnut,-W/2+.09,.11,sideZ,false);
+  box(gallery,.055,.11,sideD-.20,MAT.darkWalnut,W/2-.09,.11,sideZ,false);
 
   // bench / rug
   box(gallery,6.10,.020,2.80,new THREE.MeshStandardMaterial({color:0x241a14,roughness:.98}),0,.075,1.55,false);
@@ -1409,10 +1414,17 @@ const viewConfig={
   gallery:{pos:new THREE.Vector3(0,2.24,9.20),target:new THREE.Vector3(0,2.18,-3.42),min:6.4,max:12.2}
 };
 function setCamera(name){
-  const v=viewConfig[name];camera.position.copy(v.pos);controls.target.copy(v.target);
+  const phoneGallery=name==='gallery'&&matchMedia('(max-width:700px)').matches;
+  const v=phoneGallery
+    ?{pos:new THREE.Vector3(0,2.24,4.15),target:new THREE.Vector3(0,2.18,-3.42),min:5.5,max:8.4}
+    :viewConfig[name];
+  camera.position.copy(v.pos);controls.target.copy(v.target);
   controls.minDistance=v.min;controls.maxDistance=v.max;
+  // Keep phone gallery movement inside the open front of the room.
+  controls.minAzimuthAngle=phoneGallery?-.78:-Infinity;
+  controls.maxAzimuthAngle=phoneGallery?.78:Infinity;
   renderer.toneMappingExposure=(name==='city'||name==='terrace')?.58:.90;
-  camera.fov=(name==='city'||name==='terrace')?39:43;
+  camera.fov=phoneGallery?58:((name==='city'||name==='terrace')?39:43);
   camera.updateProjectionMatrix();
   controls.update();
 }
