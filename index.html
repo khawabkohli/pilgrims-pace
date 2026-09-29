@@ -161,7 +161,7 @@ body[data-view="work"] #roomHint{display:block}
   <button id="galleryHotspot" class="hotspot gold" data-label="The Wall" aria-label="Enter The The Wall"></button>
 
   <button id="back" data-label="Back" aria-label="Back">←</button>
-  <div id="roomHint">drag to look around · double tap the laptop / pc</div>
+  <div id="roomHint">the screen is live</div>
 
   <section id="release">
     <button class="close" id="closeRelease" aria-label="Close">×</button>
@@ -1452,9 +1452,7 @@ async function transition(fn){
 async function openView(name){
   if(name===current)return;
   current=name;document.body.dataset.view=name;release.classList.remove('open');
-  if(roomHint) roomHint.textContent=name==='work'
-    ?'drag to look around · double tap the laptop / pc'
-    :'drag to look around';
+  if(roomHint) roomHint.textContent='the screen is live';
   hsWork.style.display='none';hsProd.style.display='none';hsTerrace.style.display='none';hsGallery.style.display='none';
   history.replaceState(null,'','#'+name);
   await transition(()=>{
