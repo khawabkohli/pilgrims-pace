@@ -133,6 +133,8 @@ body[data-view="work"] #roomHint{display:block}
   .services{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){#fade,#loader,.hotspot{transition:none}}
+
+#placeTag,#burjLabel{display:none!important}
 </style>
 
 <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
@@ -148,8 +150,8 @@ body[data-view="work"] #roomHint{display:block}
 <div id="app">
   <div id="cityMap" aria-label="Interactive 3D map of Downtown Dubai"></div>
   <canvas id="world"></canvas>
-  <div id="placeTag"><b>Downtown Dubai</b><span>Burj Khalifa · Dubai Fountain</span></div>
-  <div id="burjLabel">Burj Khalifa</div>
+  <div id="placeTag" aria-hidden="true"></div>
+  <div id="burjLabel" aria-hidden="true"></div>
   <div id="vignette"></div>
   <div id="fade"></div>
 
